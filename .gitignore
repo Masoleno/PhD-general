@@ -41,6 +41,11 @@ vignettes/*.pdf
 *.csv
 *.pdf
 
+#Folders
 results/
 data/
 docs/
+
+#DS store folders
+
+.DS_Store
