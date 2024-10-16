@@ -1,0 +1,187 @@
+---
+title: "raw-data-wrangling"
+author: "Maya Sollen-Norrlin"
+date: '2022-06-18'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+loading libraries
+```{r}
+
+library(tidyverse)
+
+```
+read in the calibration data
+```{r}
+
+cal.curve <- read.csv("K-calibrations.csv")
+
+
+cal.curve
+
+
+str(cal.curve)
+
+```
+
+
+renaming column 1 in the data set as R didn't like the format
+```{r}
+
+cal.curve <- cal.curve %>%
+  rename(std.conc = std..concentration_ppm)
+
+
+```
+
+
+```{r}
+cal1 <-cal.curve %>%
+  filter(cal_no == 1)
+
+cal2 <- cal.curve %>%
+  filter(cal_no == 2)
+cal3 <- cal.curve %>%
+  filter(cal_no == 3)
+
+
+```
+
+
+plot the calbration curve
+```{r}
+
+
+  ggplot(data = cal.curve, aes(x = std.conc, y= std_reading)) +
+  geom_point()+
+  geom_smooth(method = lm, se= F, colour = "forestgreen") +
+  ylab("Photometer Reading") + xlab("Standard Concentration (ppm)") +
+  scale_colour_manual(values = c("cornflowerblue","darkgreen")) +
+  ggtitle("Calibration Curve Potassium All Samples week 24") +
+  theme(
+		# get rid of grid and color background
+		# fill with nothing, black border
+		panel.background = element_rect(fill = NA, colour = 'black'),
+		panel.grid = element_blank(),
+		plot.title = element_text(hjust = 0.5)) +
+  facet_grid(.~ cal_no)
+
+
+```
+
+```{r}
+
+mod1 <- lm(std_reading~std.conc, data = cal1)
+
+mod1
+
+```
+
+```{r}
+
+summary(mod1)
+
+```
+
+```{r}
+
+intercept1 <- mod1$coefficients[1]
+
+slope1 <- mod1$coefficients[2]
+
+
+```
+
+
+
+```{r}
+sample.readings <- read.csv("K-readings.csv")
+
+
+str(sample.readings)
+```
+
+```{r}
+summary(sample.readings)
+```
+```{r}
+head(sample.readings)
+
+```
+
+
+```{r}
+
+sample.readings.w24 <- sample.readings %>%
+  filter(time..weeks. == 24)
+
+
+
+head(sample.readings.w24)
+
+
+
+```
+
+
+```{r}
+
+sample.concentrations <- vector(mode = "numeric", length = length(sample.readings.w24$reading))
+sample.concentrations
+
+
+for (i in 1:length(sample.readings.w24$reading)) {
+  K <- (sample.readings.w24$reading - intercept)/slope
+  sample.concentrations[i] <- K[i]
+  
+}
+
+
+sample.concentrations
+
+sample.readings.w24 <- sample.readings.w24 %>%
+  add_column(K.ppm = sample.concentrations)
+
+sample.readings.w24
+
+```
+
+
+```{r}
+
+write.csv(sample.readings.w24, "K-results-w24.csv", row.names = F)
+
+
+```
+
+
+
+
+
+
+
+
