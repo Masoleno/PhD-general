@@ -63,7 +63,8 @@ chem_data <- chem_data %>%
    "NO3 (mg/kg)" = NO3.as.N..mg.kg.,
    "Conductivity (mV)" = Conductivity..mS.cm.,
    "Moisture (%)" = moisture.....,
-   "PO4 (mg/kg)" = PO4..mg.kg.
+   "PO4 (mg/kg)" = PO4..mg.kg.,
+   "OM (%)" = OM....
   )
 
 head(chem_data)
@@ -77,6 +78,68 @@ chem_data <- chem_data %>%
   mutate_at(vars(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), list( ~ (round(., 2))))
 
 head(chem_data, 20)
+
+
+chem_data <- chem_data %>%
+  mutate(intensity = if_else((Orchard == "Wisley")|(Orchard =="Burrow Hill Cider")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
+                             |(Orchard == "Ragman's Lane")|(Orchard =="North Down Farm"), "low", "high"))
+  
+
+
+
+for (i in 3:11) {
+  plot1 <- ggplot(chem_data, aes(chem_data[,i])) +
+    geom_histogram() +
+    labs(x = colnames(chem_data[i]))
+  print(plot1)
+  
+}
+
+
+
+for(i in 3:11){
+  plot <- ggplot(chem_data, aes(x = intensity, y = chem_data[,i])) +
+    stat_boxplot(aes(intensity, chem_data[,i]), geom = "errorbar") +
+    geom_boxplot(aes(intensity, chem_data[,i]), outlier.shape = NA, coef = 0) +
+    ylab(colnames(chem_data[i])) +
+    theme(panel.background = element_rect(fill = NA, colour = 'black')) +
+    scale_y_continuous(limits = c(min(chem_data[,i]), max(chem_data[,i])))
+  print(plot)
+  #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), ".jpeg"), plot = plot)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
