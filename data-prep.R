@@ -67,12 +67,14 @@ chem_data <- chem_data %>%
   )
 
 head(chem_data)
+str(chem_data)
 
-
-## Replacing negative values in the moisture and nutrient columns with 0. 
+## Replacing negative values in the moisture and nutrient columns with 0 and rounding moisture and nutrient values to 2 dp. 
 chem_data <- chem_data %>% 
   mutate(across(c(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), ~ ifelse(.x<0, 0, .x)))
 
+chem_data <- chem_data %>% 
+  mutate_at(vars(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), list( ~ (round(., 2))))
 
 head(chem_data, 20)
 
