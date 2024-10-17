@@ -17,10 +17,12 @@ library(ggpubr)
 # ---- Read in and inspect the data 
 chem_data <- read.csv("raw-chemistry-data-master.csv", na.strings = c(""))
 
+management_data <- read.csv("management-data.csv", na.strings = c(""))
+
 str(chem_data)
 head(chem_data)
 
-
+str(management_data)
 
 #Filter out columns used for calculating moisture
 chem_data <- chem_data %>%
@@ -30,7 +32,6 @@ str(chem_data)
 
 
 ## Converting to numeric. Some NA's will be introduced where values are missing. 
-
 
 chem_data <- chem_data %>%
   mutate_at(c("NO3.as.N..mg.kg.", "NO2.as.N...mg.kg.", "NH4..mg.kg.", "TON.as.N...mg.kg."), as.numeric)
@@ -52,7 +53,7 @@ chem_data[!complete.cases(chem_data),]
 
 
 
-str(chem_data_filtered)
+str(chem_data)
 
 
 chem_data <- chem_data %>% 
@@ -85,11 +86,21 @@ chem_data <- chem_data %>%
                              |(Orchard == "Ragman's Lane")|(Orchard =="North Down Farm"), "low", "high"))
   
 
+management_data_filtered <- management_data %>%
+  select(Farm, variety, Rootstock, pesticides, synthetic_fertilisers, green_manures__e_g__pruning_waste__grass,
+         compost, animal_manure, tilling, grass_mown, grazing)
 
+
+
+comb_data <- merge(chem_data, management_data_filtered, by = "Orchard", all.x = TRUE, all.y = TRUE)
+
+comb_data <- comb_data %>%
+  mutate(orchard_type = if_else((Orchard == "Wisley")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
+                                , "Charity", "Commercial"))
 
 for (i in 3:11) {
   plot1 <- ggplot(chem_data, aes(chem_data[,i])) +
-    geom_histogram() +
+    geom_histogram(binwidth = 0.5) +
     labs(x = colnames(chem_data[i]))
   print(plot1)
   
@@ -97,11 +108,15 @@ for (i in 3:11) {
 
 
 
+
+
+
+
 for(i in 3:11){
-  plot <- ggplot(chem_data, aes(x = intensity, y = chem_data[,i])) +
-    stat_boxplot(aes(intensity, chem_data[,i]), geom = "errorbar") +
-    geom_boxplot(aes(intensity, chem_data[,i]), outlier.shape = NA, coef = 0) +
-    ylab(colnames(chem_data[i])) +
+  plot <- ggplot(comb_data, aes(x = orchard_type, y = comb_data[,i])) +
+    stat_boxplot(aes(orchard_type, comb_data[,i]), geom = "errorbar") +
+    geom_boxplot(aes(orchard_type, comb_data[,i]), outlier.shape = NA, coef = 0) +
+    ylab(colnames(comb_data[i])) +
     theme(panel.background = element_rect(fill = NA, colour = 'black')) +
     scale_y_continuous(limits = c(min(chem_data[,i]), max(chem_data[,i])))
   print(plot)
