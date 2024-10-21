@@ -69,7 +69,7 @@ head(chem_data, 20)
 # Add intensity column for low vs high intensity management
 chem_data <- chem_data %>%
   mutate(intensity = if_else((Orchard == "Wisley")|(Orchard =="Burrow Hill Cider")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
-                             |(Orchard == "Ragman's Lane Farm")|(Orchard =="North Down Farm"), "low", "high"))
+                             |(Orchard == "Ragmans Lane Farm")|(Orchard =="North Down Farm"), "low", "high"))
 
 # Filter out unnecessary columns in management data
 management_data_filtered <- management_data %>%
@@ -90,7 +90,7 @@ comb_data <- comb_data %>%
 
 # Add a categorical column for cider vs dessert apple type
 comb_data <- comb_data %>%
-  mutate(fruit_type = if_else((Orchard == "Ragman's Lane Farm")|(Orchard =="North Down Farm")|(Orchard =="Burrow Hill Cider")
+  mutate(fruit_type = if_else((Orchard == "Ragmans Lane Farm")|(Orchard =="North Down Farm")|(Orchard =="Burrow Hill Cider")
                                 , "Cider", "Dessert"))
 
 
