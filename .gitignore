@@ -41,6 +41,7 @@ vignettes/*.pdf
 *.csv
 *.pdf
 *.png
+*.jpeg
 
 #Folders
 results/
