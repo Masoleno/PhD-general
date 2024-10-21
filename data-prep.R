@@ -20,13 +20,12 @@ chem_data <- read.csv("raw-chemistry-data-master.csv", na.strings = c(""))
 management_data <- read.csv("management-data.csv", na.strings = c(""))
 
 str(chem_data)
-head(chem_data)
-
 str(management_data)
+
 
 #Filter out columns used for calculating moisture
 chem_data <- chem_data %>%
-  select(Sample.ID, Orchard, moisture....., pH:PO4..mg.kg., OM....)
+  select(Sample.ID, Orchard, moisture....., pH:PO4..mg.kg., OM...., Variety, Rootstock)
 
 str(chem_data)
 
@@ -35,22 +34,6 @@ str(chem_data)
 
 chem_data <- chem_data %>%
   mutate_at(c("NO3.as.N..mg.kg.", "NO2.as.N...mg.kg.", "NH4..mg.kg.", "TON.as.N...mg.kg."), as.numeric)
-
-
-
-head(chem_data, 20)
-
-
-complete.cases(chem_data)
-
-
-tail(chem_data, 20)
-
-
-
-
-chem_data[!complete.cases(chem_data),]
-
 
 
 str(chem_data)
@@ -78,25 +61,42 @@ chem_data <- chem_data %>%
 chem_data <- chem_data %>% 
   mutate_at(vars(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), list( ~ (round(., 2))))
 
+# Rounding OM values to 3 dp. 
+chem_data$`OM (%)` <- round(chem_data$`OM (%)`, 3)
+
 head(chem_data, 20)
 
-
+# Add intensity column for low vs high intensity management
 chem_data <- chem_data %>%
   mutate(intensity = if_else((Orchard == "Wisley")|(Orchard =="Burrow Hill Cider")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
-                             |(Orchard == "Ragman's Lane")|(Orchard =="North Down Farm"), "low", "high"))
-  
+                             |(Orchard == "Ragman's Lane Farm")|(Orchard =="North Down Farm"), "low", "high"))
 
+# Filter out unnecessary columns in management data
 management_data_filtered <- management_data %>%
-  select(Farm, variety, Rootstock, pesticides, synthetic_fertilisers, green_manures__e_g__pruning_waste__grass,
+  select(Orchard, pesticides, synthetic_fertilisers, green_manures__e_g__pruning_waste__grass,
          compost, animal_manure, tilling, grass_mown, grazing)
 
 
-
+# Combine the two datasets 
 comb_data <- merge(chem_data, management_data_filtered, by = "Orchard", all.x = TRUE, all.y = TRUE)
 
+# Check that no Sample.ID column is empty (this happens if orchard names aren't matching in the two Orchard columns when merging the df's)
+which(is.na(comb_data$Sample.ID))
+
+# Add a categorical column for charity vs commercial orchard
 comb_data <- comb_data %>%
   mutate(orchard_type = if_else((Orchard == "Wisley")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
                                 , "Charity", "Commercial"))
+
+# Add a categorical column for cider vs dessert apple type
+comb_data <- comb_data %>%
+  mutate(fruit_type = if_else((Orchard == "Ragman's Lane Farm")|(Orchard =="North Down Farm")|(Orchard =="Burrow Hill Cider")
+                                , "Cider", "Dessert"))
+
+
+
+
+write_csv(comb_data, "combined-tidy-data.csv")
 
 for (i in 3:11) {
   plot1 <- ggplot(chem_data, aes(chem_data[,i])) +
@@ -105,8 +105,6 @@ for (i in 3:11) {
   print(plot1)
   
 }
-
-
 
 
 
