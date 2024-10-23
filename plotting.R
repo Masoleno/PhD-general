@@ -1,10 +1,10 @@
 options(scipen = 999)
 library(tidyverse)
 
+# Read in the csv file created at the end of the data-prep.R script
 tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
 str(tidyData)
-
 
 
 tidyData <- tidyData %>% 
@@ -33,19 +33,6 @@ for (i in 3:11) {
   
 }
 
-
-# Test all variables for normality and save statistic and p-value as a data frame
-normality <- do.call(rbind, lapply(tidyData[, 3:11], function(x) shapiro.test(x)[c("statistic", "p.value")]))
-
-normality <- data.frame(normality)
-
-# Save normality df as csv if wanted
-# write.csv(normality, "shapiro-wilks-results.csv")
-
-# Filtering out the nutrient data for now since it's incomplete and therefore unnecessary to plot
-noNutrientsData <- tidyData %>%
-  select(!`NO3 (mg/kg)`:`PO4 (mg/kg)`)
-  
 
 for(i in 3:6){
   plot <- ggplot(noNutrientsData, aes(x = Orchard, y = noNutrientsData[,i], colour = fruit_type)) +
@@ -82,4 +69,39 @@ for(i in 3:6){
   print(plot)
   ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
 }
+
+for(i in 3:6){
+  plot <- ggplot(noNutrientsData, aes(x = intensity, y = noNutrientsData[,i])) +
+    stat_boxplot(aes(intensity, noNutrientsData[,i]), geom = "errorbar") +
+    geom_boxplot(aes(intensity, noNutrientsData[,i]), coef = 0) +
+    ylab(colnames(noNutrientsData[i])) +
+    theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
+    scale_y_continuous(limits = c(min(noNutrientsData[,i]), max(noNutrientsData[,i])))
+  print(plot)
+  #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
+}
+
+for(i in 3:6){
+  plot <- ggplot(noNutrientsData, aes(x = orchard_type, y = noNutrientsData[,i])) +
+    stat_boxplot(aes(orchard_type, noNutrientsData[,i]), geom = "errorbar") +
+    geom_boxplot(aes(orchard_type, noNutrientsData[,i]), coef = 0) +
+    ylab(colnames(noNutrientsData[i])) +
+    theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
+    scale_y_continuous(limits = c(min(noNutrientsData[,i]), max(noNutrientsData[,i])))
+  print(plot)
+  #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
+}
+
+
+for(i in 3:6){
+  plot <- ggplot(noNutrientsData, aes(x = fruit_type, y = noNutrientsData[,i])) +
+    stat_boxplot(aes(fruit_type, noNutrientsData[,i]), geom = "errorbar") +
+    geom_boxplot(aes(fruit_type, noNutrientsData[,i]), coef = 0) +
+    ylab(colnames(noNutrientsData[i])) +
+    theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
+    scale_y_continuous(limits = c(min(noNutrientsData[,i]), max(noNutrientsData[,i])))
+  print(plot)
+  #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
+}
+
 
