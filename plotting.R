@@ -22,6 +22,9 @@ tidyData <- tidyData %>%
 tidyData <- tidyData %>%
   mutate_at(c("NH4 (mg/kg)", "TON (mg/kg)", "NO2 (mg/kg)", "NO3 (mg/kg)", "pH", "Conductivity (mV)", "PO4 (mg/kg)"), as.numeric)
 
+# Filtering out the nutrient data for now since it's incomplete and therefore unnecessary to plot
+noNutrientsData <- tidyData %>%
+  select(!`NO3 (mg/kg)`:`PO4 (mg/kg)`)
 
 head(tidyData)
 
@@ -47,7 +50,7 @@ for(i in 3:6){
 }
 
 for(i in 3:6){
-  plot <- ggplot(noNutrientsData, aes(x = Orchard, y = noNutrientsData[,i], colour = orchard_type)) +
+  plot <- ggplot(noNutrientsData, aes(x = Orchard, y = noNutrientsData[,i])) +
     stat_boxplot(aes(Orchard, noNutrientsData[,i]), geom = "errorbar") +
     geom_boxplot(aes(Orchard, noNutrientsData[,i]), outlier.shape = NA, coef = 0) +
     ylab(colnames(noNutrientsData[i])) +
@@ -74,7 +77,7 @@ for(i in 3:6){
   plot <- ggplot(noNutrientsData, aes(x = intensity, y = noNutrientsData[,i])) +
     stat_boxplot(aes(intensity, noNutrientsData[,i]), geom = "errorbar") +
     geom_boxplot(aes(intensity, noNutrientsData[,i]), coef = 0) +
-    ylab(colnames(noNutrientsData[i])) +
+    labs(y = colnames(noNutrientsData[i]), x = "Management Intensity") +
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     scale_y_continuous(limits = c(min(noNutrientsData[,i]), max(noNutrientsData[,i])))
   print(plot)
@@ -85,7 +88,7 @@ for(i in 3:6){
   plot <- ggplot(noNutrientsData, aes(x = orchard_type, y = noNutrientsData[,i])) +
     stat_boxplot(aes(orchard_type, noNutrientsData[,i]), geom = "errorbar") +
     geom_boxplot(aes(orchard_type, noNutrientsData[,i]), coef = 0) +
-    ylab(colnames(noNutrientsData[i])) +
+    labs(y = colnames(noNutrientsData[i]), x = "Orchard Category") +
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     scale_y_continuous(limits = c(min(noNutrientsData[,i]), max(noNutrientsData[,i])))
   print(plot)
@@ -97,7 +100,7 @@ for(i in 3:6){
   plot <- ggplot(noNutrientsData, aes(x = fruit_type, y = noNutrientsData[,i])) +
     stat_boxplot(aes(fruit_type, noNutrientsData[,i]), geom = "errorbar") +
     geom_boxplot(aes(fruit_type, noNutrientsData[,i]), coef = 0) +
-    ylab(colnames(noNutrientsData[i])) +
+    labs(y = colnames(noNutrientsData[i]), x = "Fruit Category") +
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     scale_y_continuous(limits = c(min(noNutrientsData[,i]), max(noNutrientsData[,i])))
   print(plot)

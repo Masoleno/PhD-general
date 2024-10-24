@@ -61,6 +61,8 @@ chem_data <- chem_data %>%
 chem_data <- chem_data %>% 
   mutate_at(vars(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), list( ~ (round(., 2))))
 
+
+
 # Rounding OM values to 3 dp. 
 chem_data$`OM (%)` <- round(chem_data$`OM (%)`, 3)
 
