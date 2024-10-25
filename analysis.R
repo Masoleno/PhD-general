@@ -14,22 +14,12 @@ library(ggpubr)
 tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
 str(tidyData)
+head(tidyData)
 
-tidyData <- tidyData %>% 
-  rename(
-    "NH4 (mg/kg)" = NH4..mg.kg.,
-    "TON (mg/kg)" = TON..mg.kg.,
-    "NO2 (mg/kg)" = NO2..mg.kg.,
-    "NO3 (mg/kg)" = NO3..mg.kg.,
-    "Conductivity (mV)" = Conductivity..mV.,
-    "Moisture (%)" = Moisture....,
-    "PO4 (mg/kg)" = PO4..mg.kg.,
-    "OM" = OM....
-  )
 
 tidyData <- tidyData %>%
-  mutate_at(c("NH4 (mg/kg)", "TON (mg/kg)", "NO2 (mg/kg)", "NO3 (mg/kg)",
-              "pH", "Conductivity (mV)", "PO4 (mg/kg)"), as.numeric)
+  mutate_at(c("NH4", "TON", "NO2", "NO3",
+              "pH", "Conductivity", "PO4"), as.numeric)
 
 
 # Test all variables for normality and save statistic and p-value as a data frame
@@ -71,7 +61,7 @@ normalityOrchardType <-tidyData %>%
 
 # Filtering out the nutrient data for now since it's incomplete and therefore unnecessary to plot
 noNutrientsData <- tidyData %>%
-  select(!`NO3 (mg/kg)`:`PO4 (mg/kg)`)
+  select(!NO3:PO4)
 
 
 avgs <- noNutrientsData %>%
@@ -102,19 +92,20 @@ str(tidyData)
 tidyData <- tidyData %>%
   mutate_at(c("Orchard", "orchard_type", "fruit_type", "intensity"), as.factor)
 
-tidyData <- tidyData %>%
-  filter(!OM < 0)
 
-# Comparisons between sites (orchards)
-## pH
-## Testing for outliers
+
+# Comparisons between sites (orchards) ----
+## pH ----
+### Testing for outliers----
+# using the noNutrientsData and filtering out some columns because 
+# otherwise the resulting output is too wide to read the outlier columns as they are added on the end of the tibble
 noNutrientsData %>%
   select(!pesticides:grazing) %>%
   group_by(Orchard) %>%
   identify_outliers(pH)
 # No extreme outliers detected
 
-## Building the model to test normality assumption
+###Building the model to test normality assumption ----
 modelpH <- lm(pH ~ Orchard, data = tidyData)
 
 ggqqplot(residuals(modelpH))
@@ -131,31 +122,31 @@ tidyData %>%
 # no equal variance according to test, but plot looks ok and raw data + residuals are normal (qqplot raw data)
 # will try both ANOVA and Kruskal-Wallis and compare
 
-### ANOVA
+###ANOVA ----
 anovapHSite <- tidyData %>%
   anova_test(pH ~ Orchard)
 
 anovapHSite
-#### Pairwise comparisons
+####Pairwise comparisons ----
 pwcpHSiteAno <- tidyData %>%
   tukey_hsd(pH ~ Orchard)
 pwcpHSiteAno
 
-### Kruskal-Wallis
+###Kruskal-Wallis ----
 pHSiteKruskal <- tidyData %>%
   kruskal_test(pH ~ Orchard)
 pHSiteKruskal
 
-#### Show the effect size
+# Show the effect size
 tidyData %>%
   kruskal_effsize(pH ~ Orchard)
 
-#### Pairwise comparisons
+####Pairwise comparisons ----
 pwcpHSite <- tidyData %>%
    dunn_test(pH ~ Orchard, p.adjust.method = "bonferroni")
 pwcpHSite
 
-#### Plot with significance labels
+####Plot with significance labels ----
 pwcpHSite <- pwcpHSite %>%
   add_xy_position(x = "Orchard")
 
@@ -164,16 +155,20 @@ ggboxplot(tidyData, x = "Orchard", y = "pH") +
   labs(subtitle = get_test_label(pHSiteKruskal,detailed = TRUE),
        caption = get_pwc_label(pwcpHSite))
 
-## OM
-### Testing for outliers
-noNutrientsData %>%
-  select(!pesticides:grazing) %>%
+##OM ----
+###Testing for outliers ----
+# Filter out any rows where OM is negative
+OM_data <- tidyData %>%
+  filter(!OM < 0)
+# then test for outliers
+OM_data %>%
+  select(!year_planted:time_of_year_grazing) %>%
   group_by(Orchard) %>%
-  identify_outliers(`OM (%)`)
-# 4 extreme outliers detected: Avalon Fresh, Loddington, Ockford, and Wenderton
+  identify_outliers(OM)
+# 3 extreme outliers detected: Avalon Fresh, Loddington, Ockford, and Wenderton
 # will run the ANOVA as is, and then with the data without outliers
 
-### Building the model to test normality assumption
+###Building the model to test normality assumption ----
 modelOM <- lm(`OM (%)` ~ Orchard, data = tidyData)
 
 ggqqplot(residuals(modelOM))
@@ -182,23 +177,23 @@ shapiro_test(residuals(modelOM))
 
 ggqqplot(tidyData, "`OM (%)`", facet.by = "Orchard")
 
-### Testing for equal variance
+###Testing for equal variance ----
 plot(modelOM, 1)
 
 tidyData %>%
   levene_test(`OM (%)` ~ Orchard)
-  
+###ANOVA ----  
 anovaOMSite <- tidyData %>%
   anova_test(`OM (%)` ~ Orchard)
 
 anovaOMSite
 
-
+####Pairwise comparisons ----
 pwcOM <- tidyData%>%
   tukey_hsd(`OM (%)` ~ Orchard)
 pwcOM
 
-### Plotting with significance levels
+####Plotting with significance levels ----
 pwcOM <- pwcOM %>%
   add_xy_position(x = "Orchard")
 
@@ -207,26 +202,27 @@ ggboxplot(tidyData, x = "Orchard", y = "`OM (%)`") +
   labs(subtitle = get_test_label(anovaOMSite,detailed = TRUE),
        caption = get_pwc_label(pwcOM))
 
-## Kruskal-Wallis 
+###Kruskal-Wallis ----
 OMKruskall <- tidyData %>%
   kruskal_test(`OM (%)` ~ Orchard)
 OMKruskall  
 
 tidyData %>%
   kruskal_effsize(`OM (%)` ~ Orchard)
-
+#### Pairwise comparisons ----
 pwcOMSite <- tidyData %>%
   dunn_test(`OM (%)` ~ Orchard, p.adjust.method = "bonferroni")
 pwcOMSite
 
-# T-tests
-## pH and Intensity
+# T-tests comparing categories ----
+## pH and Intensity ----
 bxp <- ggboxplot (tidyData, x = "intensity", y = "pH",
                   ylab = "pH", xlab = "Management Intensity", add = "jitter")
 bxp
 
 ggqqplot(tidyData, x = "pH", facet.by = "intensity")
 
+### Testing assumptions ----
 tidyData%>%
   group_by(intensity) %>%
   shapiro_test(pH)
@@ -234,66 +230,67 @@ tidyData%>%
 tidyData %>%
   levene_test(pH ~ intensity)
 
-## Wilcoxon Test instead as sample data is not normally distributed
-
+## Wilcoxon Test  ----
+# sample data is not normally distributed
 WilcoxTestpH <- tidyData %>%
   wilcox_test(pH ~ intensity) %>%
   add_significance()
 WilcoxTestpH
 
+## OM and intensity -----
+ggqqplot(OM_data, x = "OM", facet.by = "intensity")
 
-# OM and intensity
-ggqqplot(tidyData, x = "OM", facet.by = "intensity")
-
-tidyData%>%
+### Testing assumptions ----
+OM_data %>%
   group_by(intensity) %>%
   shapiro_test(OM)
 
-tidyData %>%
+OM_data %>%
   levene_test(OM ~ intensity)
 
-WilcoxTestOM <- tidyData %>%
+## Wilcoxon Test  ----
+WilcoxTestOM <- OM_data %>%
   wilcox_test(OM ~ intensity) %>%
   add_significance()
 WilcoxTestOM
 
-tidyData %>%
+### Effect size ----
+OM_data %>%
   wilcox_effsize(OM ~ intensity)
 
 WilcoxTestOM <- WilcoxTestOM %>%
   add_xy_position(x = "intensity")
 
-OMPlot <- ggboxplot(tidyData, x = "intensity", y = "OM",
+OMPlot <- ggboxplot(OM_data, x = "intensity", y = "OM",
                     ylab = "Organic Matter (%)", xlab = "Management Intensity", add ="jitter")  
-
 
 OMPlot + 
   stat_pvalue_manual(WilcoxTestOM, tip.length = 0.5) +
   labs(subtitle = get_test_label(WilcoxTestOM, detailed = TRUE))
 
-## OM and fruit category
-ggqqplot(tidyData, x = "OM", facet.by = "fruit_type")
+## OM and fruit category ----
+ggqqplot(OM_data, x = "OM", facet.by = "fruit_type")
 
-tidyData%>%
+OM_data %>%
   group_by(fruit_type) %>%
   shapiro_test(OM)
 
-tidyData %>%
+OM_data %>%
   levene_test(OM ~ fruit_type)
 
-WilcoxTestOM2 <- tidyData %>%
+WilcoxTestOM2 <- OM_data %>%
   rstatix::wilcox_test(OM ~ fruit_type) %>%
   add_significance()
 
 WilcoxTestOM2
 
-tidyData %>%
+OM_data %>%
   wilcox_effsize(OM ~ fruit_type)
 
 WilcoxTestOM2 <- WilcoxTestOM2 %>%
   add_xy_position(x = "fruit_type")
 
-OMPlot2 <- ggboxplot(tidyData, x = "fruit_type", y = "OM",
+OMPlot2 <- ggboxplot(OM_data, x = "fruit_type", y = "OM",
                     ylab = "Organic Matter (%)", xlab = "Crop Type", add ="jitter")  
 
 OMPlot2 + 
@@ -302,33 +299,118 @@ OMPlot2 +
 
 
 ## OM and orchard category
-ggqqplot(tidyData, x = "OM", facet.by = "orchard_type")
+ggqqplot(OM_data, x = "OM", facet.by = "orchard_type")
 
-tidyData%>%
+OM_data %>%
   group_by(orchard_type) %>%
   shapiro_test(OM)
 
-tidyData %>%
+OM_data %>%
   levene_test(OM ~ orchard_type)
 
-WilcoxTestOM3 <- tidyData %>%
+WilcoxTestOM3 <- OM_data %>%
   rstatix::wilcox_test(OM ~ orchard_type) %>%
   add_significance()
 
 WilcoxTestOM3
 
-tidyData %>%
-  wilcox_effsize(OM ~ fruit_type)
 
-WilcoxTestOM2 <- WilcoxTestOM2 %>%
+## Moisture and fruit category ----
+ggqqplot(tidyData, x = "Moisture", facet.by = "fruit_type")
+
+tidyData%>%
+  group_by(fruit_type) %>%
+  shapiro_test(Moisture)
+
+tidyData %>%
+  levene_test(Moisture ~ fruit_type)
+
+WilcoxTestMoisture <- tidyData %>%
+  rstatix::wilcox_test(Moisture ~ fruit_type) %>%
+  add_significance()
+
+WilcoxTestMoisture
+
+tidyData %>%
+  wilcox_effsize(Moisture ~ fruit_type)
+
+WilcoxTestMoisture <- WilcoxTestMoisture %>%
   add_xy_position(x = "fruit_type")
 
-OMPlot2 <- ggboxplot(tidyData, x = "fruit_type", y = "OM",
-                     ylab = "Organic Matter (%)", xlab = "Crop Type", add ="jitter")  
+moisturePlot <- ggboxplot(tidyData, x = "fruit_type", y = "Moisture",
+                     ylab = "Moisture (%)", xlab = "Crop Type", add ="jitter")  
 
-OMPlot2 + 
-  stat_pvalue_manual(WilcoxTestOM2, tip.length = 0.5) +
-  labs(subtitle = get_test_label(WilcoxTestOM2, detailed = TRUE))
+moisturePlot + 
+  stat_pvalue_manual(WilcoxTestMoisture, tip.length = 0.2) +
+  labs(subtitle = get_test_label(WilcoxTestMoisture, detailed = TRUE))
+
+## Moisture and orchard category ----
+ggqqplot(tidyData, x = "Moisture", facet.by = "orchard_type")
+
+tidyData%>%
+  group_by(orchard_type) %>%
+  shapiro_test(Moisture)
+
+tidyData %>%
+  levene_test(Moisture ~ orchard_type)
+
+WilcoxTestMoisture2 <- tidyData %>%
+  rstatix::wilcox_test(Moisture ~ orchard_type) %>%
+  add_significance()
+
+WilcoxTestMoisture2
+
+tidyData %>%
+  wilcox_effsize(Moisture ~ orchard_type)
+
+WilcoxTestMoisture2 <- WilcoxTestMoisture2 %>%
+  add_xy_position(x = "orchard_type")
+
+moisturePlot2 <- ggboxplot(tidyData, x = "orchard_type", y = "Moisture",
+                          ylab = "Moisture (%)", xlab = "Orchard Category", add ="jitter")  
+
+moisturePlot2 + 
+  stat_pvalue_manual(WilcoxTestMoisture2, tip.length = 0.2) +
+  labs(subtitle = get_test_label(WilcoxTestMoisture2, detailed = TRUE))
+
+
+## Moisture and intensity ----
+ggqqplot(tidyData, x = "Moisture", facet.by = "intensity")
+
+tidyData%>%
+  group_by(intensity) %>%
+  shapiro_test(Moisture)
+
+tidyData %>%
+  levene_test(Moisture ~ intensity)
+
+WilcoxTestMoisture3 <- tidyData %>%
+  rstatix::wilcox_test(Moisture ~ intensity) %>%
+  add_significance()
+
+WilcoxTestMoisture3
+
+tidyData %>%
+  wilcox_effsize(Moisture ~ intensity)
+
+WilcoxTestMoisture3 <- WilcoxTestMoisture3 %>%
+  add_xy_position(x = "intensity")
+
+moisturePlot3 <- ggboxplot(tidyData, x = "intensity", y = "Moisture",
+                           ylab = "Moisture (%)", xlab = "Management Intensity", add ="jitter")  
+
+moisturePlot3 + 
+  stat_pvalue_manual(WilcoxTestMoisture3, tip.length = 0.2) +
+  labs(subtitle = get_test_label(WilcoxTestMoisture3, detailed = TRUE))
+
+
+lowManagementSites <- OM_data %>%
+  filter(intensity == "low")
+
+
+
+ggboxplot(lowManagementSites, x = "fruit_type", y = "OM",
+          color = "grazing")
 
 
 

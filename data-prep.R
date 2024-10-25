@@ -41,14 +41,14 @@ str(chem_data)
 
 chem_data <- chem_data %>% 
   rename(
-   "NH4 (mg/kg)" = NH4..mg.kg.,
-   "TON (mg/kg)" = TON.as.N...mg.kg.,
-   "NO2 (mg/kg)" = NO2.as.N...mg.kg.,
-   "NO3 (mg/kg)" = NO3.as.N..mg.kg.,
-   "Conductivity (mV)" = Conductivity..mS.cm.,
-   "Moisture (%)" = moisture.....,
-   "PO4 (mg/kg)" = PO4..mg.kg.,
-   "OM (%)" = OM....
+   "NH4" = NH4..mg.kg.,
+   "TON" = TON.as.N...mg.kg.,
+   "NO2" = NO2.as.N...mg.kg.,
+   "NO3" = NO3.as.N..mg.kg.,
+   "Conductivity" = Conductivity..mS.cm.,
+   "Moisture" = moisture.....,
+   "PO4" = PO4..mg.kg.,
+   "OM" = OM....
   )
 
 head(chem_data)
@@ -56,15 +56,19 @@ str(chem_data)
 
 ## Replacing negative values in the moisture and nutrient columns with 0 and rounding moisture and nutrient values to 2 dp. 
 chem_data <- chem_data %>% 
-  mutate(across(c(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), ~ ifelse(.x<0, 0, .x)))
+  mutate(across(c(Moisture, NO3:PO4), ~ ifelse(.x<0, 0, .x)))
 
 chem_data <- chem_data %>% 
-  mutate_at(vars(`Moisture (%)`, `NO3 (mg/kg)`:`PO4 (mg/kg)`), list( ~ (round(., 2))))
+  mutate_at(vars(Moisture, NO3:PO4), list( ~ (round(., 2))))
 
 
 
 # Rounding OM values to 3 dp. 
-chem_data$`OM (%)` <- round(chem_data$`OM (%)`, 3)
+# This removes rows where OM is negative. However, I might only want to do this when analyzing OM since those rows are usable for other variables
+chem_data <- chem_data %>%
+  filter(!OM < 0)
+
+chem_data$OM <- round(chem_data$OM, 3)
 
 head(chem_data, 20)
 
@@ -75,8 +79,8 @@ chem_data <- chem_data %>%
 
 # Filter out unnecessary columns in management data
 management_data_filtered <- management_data %>%
-  select(Orchard, pesticides, synthetic_fertilisers, green_manures__e_g__pruning_waste__grass,
-         compost, animal_manure, tilling, grass_mown, grazing)
+  select(!c(variety,Rootstock))
+
 
 
 # Combine the two datasets 
