@@ -98,6 +98,12 @@ comb_data <- comb_data %>%
 comb_data <- comb_data %>%
   mutate(fruit_type = if_else((Orchard == "Ragmans Lane Farm")|(Orchard =="North Down Farm")|(Orchard =="Burrow Hill Cider")
                                 , "Cider", "Dessert"))
+comb_data <- comb_data %>%
+  mutate(orchard_age = 2024 - year_planted) %>%
+  dplyr::select(- year_planted)
+  
+
+
 
 
 

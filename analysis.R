@@ -90,7 +90,7 @@ avgsNutri <- tidyData %>%
 str(tidyData)
 
 tidyData <- tidyData %>%
-  mutate_at(c("Orchard", "orchard_type", "fruit_type", "intensity"), as.factor)
+  mutate_at(c("Orchard", "orchard_type", "fruit_type", "intensity", "orchard_age"), as.factor)
 
 
 
@@ -237,6 +237,34 @@ WilcoxTestpH <- tidyData %>%
   add_significance()
 WilcoxTestpH
 
+
+## pH and pesticides ----
+
+tempData <- noNutrientsData %>%
+  filter(! pesticides == "NA") %>%
+  filter(! orchard_age == "NA")
+  
+  
+pHbxp2 <- ggboxplot (tempData, x = "pesticides", y = "pH",
+                     ylab = "pH", xlab = "Pesticide use", add = "jitter")
+pHbxp2
+
+ggqqplot(tempData, x = "pH", facet.by = "pesticides")
+
+tempData%>%
+  group_by(pesticides) %>%
+  shapiro_test(pH)
+
+tempData %>%
+  levene_test(pH ~ pesticides)
+
+WilcoxTestphPesti <- tempData %>%
+  rstatix::wilcox_test(pH ~ pesticides) %>%
+    add_significance()
+
+WilcoxTestphPesti
+
+
 ## OM and intensity -----
 ggqqplot(OM_data, x = "OM", facet.by = "intensity")
 
@@ -269,6 +297,10 @@ OMPlot +
   labs(subtitle = get_test_label(WilcoxTestOM, detailed = TRUE))
 
 ## OM and fruit category ----
+OM_data <- OM_data %>%
+  filter(! orchard_age == "NA")
+
+
 ggqqplot(OM_data, x = "OM", facet.by = "fruit_type")
 
 OM_data %>%
@@ -313,6 +345,43 @@ WilcoxTestOM3 <- OM_data %>%
   add_significance()
 
 WilcoxTestOM3
+
+## OM and orchard age
+# this is currently the same as comparing sites since all orchards are different ages
+
+ggqqplot(OM_data, x = "OM", facet.by = "orchard_age")
+
+OM_data %>%
+  group_by(orchard_age) %>%
+  shapiro_test(OM)
+
+OM_data %>%
+  levene_test(OM ~ orchard_age)
+
+model <- lm(OM ~ orchard_age, data = OM_data)
+
+ggqqplot(residuals(model))
+shapiro_test(residuals(model))
+
+OM_data %>%
+  levene_test(OM ~ orchard_age)
+
+OM_aov <- OM_data %>%
+  welch_anova_test(OM ~ orchard_age)
+OM_aov
+
+OMpwc <- OM_data %>%
+  tukey_hsd(OM ~ orchard_age)
+OMpwc
+
+OMpwc <- OMpwc %>%
+  add_xy_position(x = "orchard_age")
+
+ggboxplot(OM_data, x = "orchard_age", y = "OM") +
+  stat_pvalue_manual(OMpwc, hide.ns = TRUE) +
+  labs(subtitle = get_test_label(OM_aov, detailed = TRUE),
+       caption = get_pwc_label(OMpwc))
+
 
 
 ## Moisture and fruit category ----
