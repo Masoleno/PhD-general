@@ -74,7 +74,7 @@ head(chem_data, 20)
 
 # Add intensity column for low vs high intensity management
 chem_data <- chem_data %>%
-  mutate(intensity = if_else((Orchard == "Wisley")|(Orchard =="Burrow Hill Cider")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
+  mutate(intensity = if_else((Orchard =="Burrow Hill Cider")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
                              |(Orchard == "Ragmans Lane Farm")|(Orchard =="North Down Farm"), "low", "high"))
 
 # Filter out unnecessary columns in management data

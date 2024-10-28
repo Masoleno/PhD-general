@@ -17,10 +17,11 @@ str(tidyData)
 head(tidyData)
 
 
+
 tidyData <- tidyData %>%
   mutate_at(c("NH4", "TON", "NO2", "NO3",
               "pH", "Conductivity", "PO4"), as.numeric)
-
+str(tidyData)
 
 # Test all variables for normality and save statistic and p-value as a data frame
 
@@ -65,34 +66,34 @@ noNutrientsData <- tidyData %>%
 
 
 avgs <- noNutrientsData %>%
-  select(Orchard:`OM (%)`) %>%
+  select(Orchard:OM) %>%
   na.exclude() %>%
   group_by(Orchard) %>%
   summarise(pHavg = round(mean(pH), 2),
-            moistAvg = round(mean(`Moisture (%)`), 2),
-            OMavg = round(mean(`OM (%)`), 3),
-            condAvg = round(mean(`Conductivity (mV)`), 2))
+            moistAvg = round(mean(Moisture), 2),
+            OMavg = round(mean(OM), 3),
+            condAvg = round(mean(Conductivity), 2))
 
 write.csv(avgs, "chemistry-means.csv", row.names = FALSE)
 
 avgsNutri <- tidyData %>%
-  select(Orchard:`OM (%)`) %>%
+  select(Orchard:OM) %>%
   na.exclude() %>%
   group_by(Orchard) %>%
   summarise(pHavg = round(mean(pH), 2),
             moistAvg = round(mean(`Moisture (%)`), 2),
-            OMavg = round(mean(`OM (%)`), 3),
-            condAvg = round(mean(`Conductivity (mV)`), 2),
-            NO3avg = round(mean(`NO3 (mg/kg)`), 2),
-            NO2avg = round(mean(`NO2 (mg/kg)`), 2),
-            NH4avg = round(mean(`NH4 (mg/kg)`), 2),
-            TONavg = round(mean(`TON (mg/kg)`), 2))
+            OMavg = round(mean(OM), 3),
+            condAvg = round(mean(Conductivity), 2),
+            NO3avg = round(mean(NO3), 2),
+            NO2avg = round(mean(NO2), 2),
+            NH4avg = round(mean(NH4), 2),
+            TONavg = round(mean(TON), 2))
 str(tidyData)
 
-tidyData <- tidyData %>%
+noNutrientsData <- noNutrientsData %>%
   mutate_at(c("Orchard", "orchard_type", "fruit_type", "intensity", "orchard_age"), as.factor)
 
-
+str(noNutrientsData)
 
 # Comparisons between sites (orchards) ----
 ## pH ----
@@ -134,7 +135,7 @@ pwcpHSiteAno
 
 ###Kruskal-Wallis ----
 pHSiteKruskal <- tidyData %>%
-  kruskal_test(pH ~ Orchard)
+  rstatix::kruskal_test(pH ~ Orchard)
 pHSiteKruskal
 
 # Show the effect size
@@ -150,21 +151,88 @@ pwcpHSite
 pwcpHSite <- pwcpHSite %>%
   add_xy_position(x = "Orchard")
 
-ggboxplot(tidyData, x = "Orchard", y = "pH") +
-  stat_pvalue_manual(pwcpHSite, hide.ns = TRUE) +
+ggboxplot(tidyData, x = "Orchard", y = "pH", color = "intensity") +
   labs(subtitle = get_test_label(pHSiteKruskal,detailed = TRUE),
-       caption = get_pwc_label(pwcpHSite))
+       caption = get_pwc_label(pwcpHSite), color = "Management Intensity") +
+  theme(axis.text.x = element_text(angle =110))
 
 ##OM ----
 ###Testing for outliers ----
 # Filter out any rows where OM is negative
-OM_data <- tidyData %>%
+OM_data <- noNutrientsData %>%
   filter(!OM < 0)
 # then test for outliers
 OM_data %>%
-  select(!year_planted:time_of_year_grazing) %>%
+  select(!What_before:time_of_year_grazing) %>%
   group_by(Orchard) %>%
   identify_outliers(OM)
+# 3 extreme outliers detected
+# will run the ANOVA as is, and then with the data without outliers
+
+###Building the model to test normality assumption ----
+modelOM <- lm(OM ~ Orchard, data = OM_data)
+
+ggqqplot(residuals(modelOM))
+
+shapiro_test(residuals(modelOM))
+
+ggqqplot(OM_data, "OM", facet.by = "Orchard")
+
+###Testing for equal variance ----
+plot(modelOM, 1)
+
+OM_data %>%
+  levene_test(OM ~ Orchard)
+
+###ANOVA ----  
+anovaOMSite <- tidyData %>%
+  anova_test(`OM (%)` ~ Orchard)
+
+anovaOMSite
+
+####Pairwise comparisons ----
+pwcOM <- tidyData%>%
+  tukey_hsd(`OM (%)` ~ Orchard)
+pwcOM
+
+####Plotting with significance levels ----
+pwcOM <- pwcOM %>%
+  add_xy_position(x = "Orchard")
+
+ggboxplot(tidyData, x = "Orchard", y = "`OM (%)`") +
+  stat_pvalue_manual(pwcOM, hide.ns = TRUE) +
+  labs(subtitle = get_test_label(anovaOMSite,detailed = TRUE),
+       caption = get_pwc_label(pwcOM))
+
+###Kruskal-Wallis ----
+OMKruskall <-  OM_data %>%
+  rstatix::kruskal_test(OM ~ Orchard)
+
+OMKruskall  
+
+tidyData %>%
+  kruskal_effsize(OM ~ Orchard)
+
+#### Pairwise comparisons ----
+pwcOMSite <- OM_data %>%
+  dunn_test(OM ~ Orchard, p.adjust.method = "bonferroni")
+pwcOMSite
+
+#### Plotting ----
+pwcOMSite <- pwcOMSite %>%
+  add_xy_position(x = "Orchard")
+
+ggboxplot(OM_data, x = "Orchard", y = "OM", color = "intensity") +
+  labs(subtitle = get_test_label(OMKruskall,detailed = TRUE),
+       caption = get_pwc_label(pwcOMSite), y = "OM (%)", color = "Management Intensity") +
+  theme(axis.text.x = element_text(angle =110))
+
+## Moisture ----
+### Testing for outliers ----
+noNutrientsData %>%
+  select(!What_before:time_of_year_grazing) %>%
+  group_by(Orchard) %>%
+  identify_outliers(Moisture)
 # 3 extreme outliers detected: Avalon Fresh, Loddington, Ockford, and Wenderton
 # will run the ANOVA as is, and then with the data without outliers
 
