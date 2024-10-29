@@ -7,24 +7,13 @@ tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 str(tidyData)
 
 
-tidyData <- tidyData %>% 
-  rename(
-    "NH4 (mg/kg)" = NH4..mg.kg.,
-    "TON (mg/kg)" = TON..mg.kg.,
-    "NO2 (mg/kg)" = NO2..mg.kg.,
-    "NO3 (mg/kg)" = NO3..mg.kg.,
-    "Conductivity (mV)" = Conductivity..mV.,
-    "Moisture (%)" = Moisture....,
-    "PO4 (mg/kg)" = PO4..mg.kg.,
-    "OM (%)" = OM....
-  )
 
 tidyData <- tidyData %>%
-  mutate_at(c("NH4 (mg/kg)", "TON (mg/kg)", "NO2 (mg/kg)", "NO3 (mg/kg)", "pH", "Conductivity (mV)", "PO4 (mg/kg)"), as.numeric)
+  mutate_at(c("NH4", "TON", "NO2", "NO3", "pH", "Conductivity", "PO4"), as.numeric)
 
 # Filtering out the nutrient data for now since it's incomplete and therefore unnecessary to plot
 noNutrientsData <- tidyData %>%
-  select(!`NO3 (mg/kg)`:`PO4 (mg/kg)`)
+  select(!NO3:PO4)
 
 head(tidyData)
 

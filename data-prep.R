@@ -64,9 +64,6 @@ chem_data <- chem_data %>%
 
 
 # Rounding OM values to 3 dp. 
-# This removes rows where OM is negative. However, I might only want to do this when analyzing OM since those rows are usable for other variables
-chem_data <- chem_data %>%
-  filter(!OM < 0)
 
 chem_data$OM <- round(chem_data$OM, 3)
 
