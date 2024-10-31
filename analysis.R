@@ -23,9 +23,42 @@ tidyData <- tidyData %>%
 
 
 tidyData <- tidyData %>%
-  mutate_at(c("intensity", "Variety", "Rootstock", "orchard_type", "fruit_type", "orchard_age"), as.factor)
+  mutate_at(c("intensity", "Variety", "orchard_type", "fruit_type", "orchard_age"), as.factor)
 
 str(tidyData)
+
+# Renaming factors in Variety column to make sensible groups for plotting and comparisons
+tidyData$Variety <- case_match(tidyData$Variety,
+             "Gala" ~ "Gala",
+             "Brambley" ~ "Bramley",
+             "Kanzi" ~ "Kanzi",
+             "Red Prince" ~ "Red Prince",
+             .default = "Mixed")
+
+# Two samples in Lady Gilberts are Bramleys so need changing to "mixed" manually
+tidyData[133, 12] <- "Mixed"
+tidyData[136, 12] <- "Mixed"
+
+
+tidyData$Rootstock <- case_match(tidyData$Rootstock,
+                                 "M25" ~ "M25",
+                                 "M9" ~ "M9",
+                                 "Mostly MM106" ~ "MM106",
+                                 "MM106" ~ "MM106",
+                                 "Pajam 2" ~ "Pajam 2",
+                                 .default = "Mixed")
+
+tidyData$Rootstock[tidyData$Orchard == "Lady Gilberts"] <- "Mixed"
+tidyData$Rootstock[tidyData$Orchard == "Gunnersby Park"] <- "Mixed"
+str(tidyData)
+
+tidyData$Rootstock <- as.factor(tidyData$Rootstock)
+str(tidyData)
+levels(tidyData$Rootstock)
+
+tidyData$Variety <- as.factor(tidyData$Variety)
+str(tidyData)
+levels(tidyData$Variety)
 
 # Test all variables for normality and save statistic and p-value as a data frame -----
 
@@ -131,7 +164,7 @@ pHData %>%
 # no equal variance according to test, but plot looks ok and raw data + residuals are normal (qqplot raw data)
 # will try both ANOVA and Kruskal-Wallis and compare
 
-###ANOVA ----
+###ANOVA sites ----
 anovapHSite <- pHData %>%
   anova_test(pH ~ Orchard)
 
@@ -145,10 +178,10 @@ pwcpHSiteAno
 pwcpHSiteAno <- pwcpHSiteAno %>%
   add_xy_position(x = "Orchard")
 
-ggboxplot(pHData, x = "Orchard", y = "pH", color = "intensity") +
+ggboxplot(pHData, x = "Orchard", y = "pH", color = "Variety") +
   #stat_pvalue_manual(pwcpHSiteAno, hide.ns = TRUE) +
   labs(subtitle = get_test_label(anovapHSite,detailed = TRUE),
-       caption = get_pwc_label(pwcpHSiteAno), color = "Management Intensity") +
+       caption = get_pwc_label(pwcpHSiteAno), color = "Apple Variety") +
   theme(axis.text.x = element_text(angle =110))
 
 
@@ -174,6 +207,58 @@ ggboxplot(pHData, x = "Orchard", y = "pH", color = "intensity") +
   labs(subtitle = get_test_label(pHSiteKruskal,detailed = TRUE),
        caption = get_pwc_label(pwcpHSite), color = "Management Intensity") +
   theme(axis.text.x = element_text(angle =110))
+
+### ANOVA variety ----
+
+pHData %>%
+  select(!What_before:time_of_year_grazing) %>%
+  group_by(Variety) %>%
+  identify_outliers(pH)
+
+modelpH2 <- lm(pH ~ Variety, data = pHData)
+
+ggqqplot(residuals(modelpH2))
+
+shapiro_test(residuals(modelpH2))
+
+ggqqplot(pHData, "pH", facet.by = "Variety")
+
+plot(modelpH2, 1)
+
+
+pHData %>%
+  levene_test(pH ~ Variety)
+# no equal variance according to test, but plot looks ok and raw data + residuals are normal (qqplot raw data)
+# will try both ANOVA and Kruskal-Wallis and compare
+
+anovapHVar <- pHData %>%
+  anova_test(pH ~ Variety)
+
+anovapHVar
+
+####Pairwise comparisons ----
+pwcpHVarAno <- pHData %>%
+  tukey_hsd(pH ~ Variety)
+pwcpHVarAno
+
+####Plot with significance labels ----
+pwcpHVarAno <- pwcpHVarAno %>%
+  add_xy_position(x = "Variety")
+
+ph_bxp <- ggboxplot(pHData, x = "Variety", y = "pH", color = "fruit_type") +
+  stat_pvalue_manual(pwcpHVarAno, hide.ns = TRUE) +
+  labs(subtitle = get_test_label(anovapHVar,detailed = TRUE),
+       caption = get_pwc_label(pwcpHVarAno), color = "Site", fill = "Management Intensity") +
+  theme(axis.text.x = element_text(angle =110))
+
+ph_bxp  + facet_wrap(.~ intensity)
+ph_bxp
+
+# filtering out orchards where rootstock is currently unknown because questionnaire has not been filled out
+# if orchard_age is empty it means the questionnaire hasn't been done
+rootstockData <- tidyData %>%
+  dplyr::filter(orchard_age !="NA")
+
 
 ##OM ----
 ###Testing for outliers ----
@@ -925,6 +1010,23 @@ condPlot4 <- ggboxplot(CondData, x = "orchard_type", y = "Conductivity",
 condPlot4 + 
   stat_pvalue_manual(WilcoxTestCond4, tip.length = 0) +
   labs(subtitle = get_test_label(WilcoxTestCond4, detailed = TRUE))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
