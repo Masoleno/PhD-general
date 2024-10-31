@@ -97,3 +97,10 @@ for(i in 3:6){
 }
 
 
+
+pHVarbxp <- ggboxplot(pHData, x = "Variety", y = "pH", color = "fruit_type") +
+    labs(color = "Crop Type") +
+    theme(axis.text.x = element_text(angle =110))
+
+facet(pHVarbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
+
