@@ -1,21 +1,23 @@
 options(scipen = 999)
 library(tidyverse)
 library(tidyr)      # for data manipulation functions
-library(data.table) # for function `fread`
-library(broom)      # for function `tidy`
-library(car)
-library(report)
+#library(data.table) # for function `fread`
+#library(broom)      # for function `tidy`
+#library(car)
+#library(report)
 library(rstatix)
 library(ggpubr)
 
 
-# Read in the csv file created at the end of the data-prep.R script
+# Read in the csv file created at the end of the data-prep.R script ----
 tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
+
+
+
+# Check the data
 
 str(tidyData)
 head(tidyData)
-
-
 
 tidyData <- tidyData %>%
   mutate_at(c("NH4", "TON", "NO2", "NO3",
@@ -27,7 +29,7 @@ tidyData <- tidyData %>%
 
 str(tidyData)
 
-# Renaming factors in Variety column to make sensible groups for plotting and comparisons
+# Renaming factors in Variety and rootstock columns to make sensible groups for plotting and comparisons
 tidyData$Variety <- case_match(tidyData$Variety,
              "Gala" ~ "Gala",
              "Brambley" ~ "Bramley",
@@ -59,6 +61,9 @@ levels(tidyData$Rootstock)
 tidyData$Variety <- as.factor(tidyData$Variety)
 str(tidyData)
 levels(tidyData$Variety)
+
+
+
 
 # Test all variables for normality and save statistic and p-value as a data frame -----
 
@@ -125,6 +130,9 @@ avgsNutri <- tidyData %>%
             NO2avg = round(mean(NO2), 2),
             NH4avg = round(mean(NH4), 2),
             TONavg = round(mean(TON), 2))
+
+
+
 
 
 
@@ -309,7 +317,52 @@ ggboxplot(OM_data, x = "Orchard", y = "`OM (%)`") +
   labs(subtitle = get_test_label(anovaOMSite,detailed = TRUE),
        caption = get_pwc_label(pwcOM))
 
-###Kruskal-Wallis ----
+### Kruskal-Wallis variety ----
+
+OM_data %>%
+  select(!What_before:time_of_year_grazing) %>%
+  group_by(Variety) %>%
+  identify_outliers(OM)
+
+modelOM2 <- lm(OM ~ Variety, data = OM_data)
+
+ggqqplot(residuals(modelOM2))
+
+shapiro_test(residuals(modelOM2))
+
+ggqqplot(pHData, "OM", facet.by = "Variety")
+
+plot(modelOM2, 1)
+
+
+OM_data %>%
+  levene_test(OM ~ Variety)
+
+OMKruskall2 <-  OM_data %>%
+  rstatix::kruskal_test(OM ~ Variety)
+
+OMKruskall2 
+
+OM_data %>%
+  kruskal_effsize(OM ~ Variety)
+
+#### Pairwise comparisons ----
+pwcOMVar <- OM_data %>%
+  dunn_test(OM ~ Variety, p.adjust.method = "bonferroni")
+pwcOMVar
+
+#### Plotting ----
+
+pwcOMVar <- pwcOMVar %>%
+  add_xy_position(x = "Variety")
+
+ggboxplot(OM_data, x = "Variety", y = "OM", color = "fruit_type") +
+  labs(subtitle = get_test_label(OMKruskall2,detailed = TRUE),
+       caption = get_pwc_label(pwcOMVar), y = "OM (%)", color = "Crop Type") +
+  theme(axis.text.x = element_text(angle =110))
+
+
+###Kruskal-Wallis Site ----
 OMKruskall <-  OM_data %>%
   rstatix::kruskal_test(OM ~ Orchard)
 
@@ -1013,9 +1066,60 @@ condPlot4 +
 
 
 
+# pH site and RS Galas only 
+pHGalas <- pHData %>%
+  filter(Variety == "Gala")
+
+pHGalas %>%
+  select(!What_before:orchard_age) %>%
+  group_by(Orchard, Rootstock) %>%
+  identify_outliers(pH)
 
 
+###Building the model to test normality assumption ----
+galapHMod <- lm(pH ~ Orchard*Rootstock, data = pHGalas)
 
+ggqqplot(residuals(galapHMod))
+
+shapiro_test(residuals(galapHMod))
+# Residuals are normal
+
+pHGalas %>%
+  group_by(Orchard, Rootstock) %>%
+  shapiro_test(pH)
+
+ggqqplot(pHGalas, "pH", ggtheme = theme_bw()) +
+  facet_grid(Orchard ~ Rootstock)
+#Raw data are normal for each roup
+
+###Testing for equal variance ----
+plot(galapHMod, 1)
+
+pHGalas %>%
+  levene_test(pH ~ Orchard*Rootstock)
+# Equal variance confirmed
+
+###ANOVA ----  
+pHGalaAov <- pHGalas %>%
+  anova_test(pH ~ Rootstock*Orchard)
+
+pHGalaAov
+
+summary(pHGalaAov)
+
+####Pairwise comparisons ----
+pwcOM <- OM_data%>%
+  tukey_hsd(`OM (%)` ~ Orchard)
+pwcOM
+
+####Plotting with significance levels ----
+pwcOM <- pwcOM %>%
+  add_xy_position(x = "Orchard")
+
+ggboxplot(OM_data, x = "Orchard", y = "`OM (%)`") +
+  stat_pvalue_manual(pwcOM, hide.ns = TRUE) +
+  labs(subtitle = get_test_label(anovaOMSite,detailed = TRUE),
+       caption = get_pwc_label(pwcOM))
 
 
 
