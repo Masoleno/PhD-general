@@ -1,21 +1,79 @@
 options(scipen = 999)
 library(tidyverse)
 
-# Read in the csv file created at the end of the data-prep.R script
+# Read in the csv file created at the end of the data-prep.R script ----
 tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
-str(tidyData)
 
+# Check the data ----
+str(tidyData)
+head(tidyData)
+
+tidyData <- tidyData %>%
+  mutate_at(c("NH4", "TON", "NO2", "NO3",
+              "pH", "Conductivity", "PO4"), as.numeric)
 
 
 tidyData <- tidyData %>%
-  mutate_at(c("NH4", "TON", "NO2", "NO3", "pH", "Conductivity", "PO4"), as.numeric)
+  mutate_at(c("intensity", "Variety", "orchard_type", "fruit_type", "orchard_age"), as.factor)
+
+str(tidyData)
+
+# Renaming factors in Variety and rootstock columns to make sensible groups for plotting and comparisons
+tidyData$Variety <- case_match(tidyData$Variety,
+                               "Gala" ~ "Gala",
+                               "Brambley" ~ "Bramley",
+                               "Kanzi" ~ "Kanzi",
+                               "Red Prince" ~ "Red Prince",
+                               .default = "Mixed")
+
+# Two samples in Lady Gilberts are Bramleys so need changing to "mixed" manually
+tidyData[133, 12] <- "Mixed"
+tidyData[136, 12] <- "Mixed"
+
+
+tidyData$Rootstock <- case_match(tidyData$Rootstock,
+                                 "M25" ~ "M25",
+                                 "M9" ~ "M9",
+                                 "Mostly MM106" ~ "MM106",
+                                 "MM106" ~ "MM106",
+                                 "Pajam 2" ~ "Pajam 2",
+                                 .default = "Mixed")
+
+tidyData$Rootstock[tidyData$Orchard == "Lady Gilberts"] <- "Mixed"
+tidyData$Rootstock[tidyData$Orchard == "Gunnersby Park"] <- "Mixed"
+str(tidyData)
+
+tidyData$Rootstock <- as.factor(tidyData$Rootstock)
+str(tidyData)
+levels(tidyData$Rootstock)
+
+tidyData$Variety <- as.factor(tidyData$Variety)
+str(tidyData)
+levels(tidyData$Variety)
 
 # Filtering out the nutrient data for now since it's incomplete and therefore unnecessary to plot
 noNutrientsData <- tidyData %>%
   select(!NO3:PO4)
 
 head(tidyData)
+
+
+# Data filtering ----
+## Removing rows where pH is missing
+which(tidyData$pH <= 0)
+which(is.na(tidyData$pH))
+
+pHData <- tidyData %>%
+  slice(- c(77,79,135))
+
+which(is.na(pHData$pH))
+
+## Removing row where OM is negative
+OM_data <- tidyData %>%
+  filter(!OM < 0)
+
+
 
 for (i in 3:11) {
   plot1 <- ggplot(tidyData, aes(chem_data[,i])) +
@@ -103,4 +161,49 @@ pHVarbxp <- ggboxplot(pHData, x = "Variety", y = "pH", color = "fruit_type") +
     theme(axis.text.x = element_text(angle =110))
 
 facet(pHVarbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
+
+pHRSbxp <- ggboxplot(pHData, x = "Rootstock", y = "pH", color = "fruit_type") +
+  labs(color = "Crop Type") +
+  theme(axis.text.x = element_text(angle =110))
+
+facet(pHRSbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
+
+
+OMVarbxp <- ggboxplot(OM_data, x = "Variety", y = "OM", color = "fruit_type") +
+  labs(color = "Crop Type", y = "Organic Matter (%)") +
+  theme(axis.text.x = element_text(angle =110))
+
+facet(OMVarbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
+
+
+OMRSbxp <- ggboxplot(OM_data, x = "Rootstock", y = "OM", color = "fruit_type") +
+  labs(color = "Crop Type", y = "Organic Matter (%)") +
+  theme(axis.text.x = element_text(angle =110))
+
+facet(OMRSbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
+
+
+pHGalas <- pHData %>%
+  filter(Variety == "Gala")
+
+pHGalaBxp <- ggboxplot(pHGalas, x = "Rootstock", y = "pH", color = "Orchard") +
+  labs(color = "Site") +
+  theme(axis.text.x = element_text(angle =110))
+
+pHGalaBxp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
