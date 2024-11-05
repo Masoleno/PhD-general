@@ -90,5 +90,147 @@ num_asvs_vec
 save(num_asvs_vec, file = "num-asvs-vec.RData")
 
 
+# Minimum read depth
+abundance_metadf <- phyloseq::sample_data(ps_bac)
 
-ps <- prune_samples(sample_names(physeq) != c("123R":"Pos2"))
+#Check if the vector of sample_depths has the same order as our metadata rows
+head(names(sample_depths))
+head(row.names(abundance_metadf))
+identical(names(sample_depths),row.names(abundance_metadf))
+
+#Add sample depths to metadata data frame
+abundance_metadf[,"depth"] <- sample_depths
+#View top 6 rows of edited metadata dataframe
+head(abundance_metadf)
+
+# Boxplots of read depth by groupings
+boxplot <- boxplot <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=Orchard)) +
+  ggplot2::geom_boxplot()
+boxplot
+
+boxplot2  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=intensity)) +
+  ggplot2::geom_boxplot()
+boxplot2
+
+boxplot3  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=Rootstock)) +
+  ggplot2::geom_boxplot()
+boxplot3
+
+boxplot4  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=Variety)) +
+  ggplot2::geom_boxplot() +
+  theme(axis.text.x = element_text(angle =110))
+boxplot4
+
+
+# Rarefaction curve
+# Extract ASV table as transposed data frame
+asv_abund_df <- as.data.frame(t(phyloseq::otu_table(ps_bac)))
+
+# plot the rarefaction curve
+vegan::rarecurve(
+  x = asv_abund_df, step = 50,
+  xlab = "Read depth",
+  ylab = "ASVs"
+)
+
+
+# Subset and keep samples with more than 11k reads
+ps_min11K <- phyloseq::subset_samples(ps_bac, sample_depths > 11000)
+
+#Abundance sums of the 1st six ASVs
+head(phyloseq::taxa_sums(ps_min11K))
+length(phyloseq::taxa_sums(ps_min11K))
+
+# Remove ASVs with no abundance
+ps_min11K <- phyloseq::prune_taxa(
+  phyloseq::taxa_sums(ps_min11K) > 0, ps_min11K
+)
+
+# Summarise subsetted phyloseq
+microbiome::summarize_phyloseq(ps_min11K)
+microbiome::readcount(ps_min11K)
+length(phyloseq::taxa_sums(ps_min11K))
+ps_min11K
+
+
+
+
+
+# Taxa relative abundance ----
+# Transform abundance table to a relative abundance (compositional) table
+pseq_relabund <- microbiome::transform(ps_bac, "compositional")
+
+#Summarise and check sample counts which should each amount to 1
+microbiome::summarize_phyloseq(pseq_relabund)
+microbiome::readcount(pseq_relabund)
+
+
+
+
+
+
+# Diversity analysis ----
+# Plot rarefaction curves displaying two different minimum read depths (11k and 6k) as a horizontal line
+vegan::rarecurve(
+  x = asv_abund_df, step = 50,
+  xlab = "Read depth", ylab = "ASVs", lwd=1, label = F,
+  sample = min(microbiome::readcount(ps_min11K))
+)
+
+vegan::rarecurve(
+  x = asv_abund_df, step = 50,
+  xlab = "Read depth", ylab = "ASVs", lwd=1, label = F,
+  sample = min(6000)
+)
+
+# 11k seems like a good minimum read depth to rarefy at
+# Rarefaction slopes
+rarefaction_slopes <- vegan::rareslope(
+  x = asv_abund_df, sample = min(microbiome::readcount(ps_min11K))
+)
+# View slopes from lowest to highest value
+sort(rarefaction_slopes)
+
+# Summary of slopes
+summary(rarefaction_slopes)
+
+# Histogram of slopes
+hist(rarefaction_slopes)
+
+
+# Rarefy to minimum depth
+pseq_rarefy <- phyloseq::rarefy_even_depth(
+  ps_min11K, sample.size = min(microbiome::readcount(ps_min11K)),
+  rngseed = 1000
+)
+
+
+# Summarise and check sample counts which should each amount to 12832 (min depth)
+microbiome::summarize_phyloseq(pseq_rarefy)
+microbiome::readcount(pseq_rarefy)
+# ASV counts
+# Add relative abundance ASV count
+num_asvs_vec["rarefied"] <- nrow(phyloseq::otu_table(pseq_rarefy))
+num_asvs_vec
+
+# Phyloseq save
+save(pseq_rarefy, file ="phyloseq-bacteria-rarefied.RData")
+# ASV count save
+save(num_asvs_vec, file="num_asvs_vec.v2.RData")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
