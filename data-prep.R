@@ -99,6 +99,29 @@ comb_data <- comb_data %>%
   mutate(orchard_age = 2024 - year_planted) %>%
   dplyr::select(- year_planted)
   
+# Renaming factors in Variety and rootstock columns to make sensible groups for plotting and comparisons
+comb_data$Variety <- case_match(comb_data$Variety,
+                               "Gala" ~ "Gala",
+                               "Brambley" ~ "Bramley",
+                               "Kanzi" ~ "Kanzi",
+                               "Red Prince" ~ "Red Prince",
+                               .default = "Mixed")
+
+# Two samples in Lady Gilberts are Bramleys so need changing to "mixed" manually
+comb_data[133, 12] <- "Mixed"
+comb_data[136, 12] <- "Mixed"
+
+
+comb_data$Rootstock <- case_match(comb_data$Rootstock,
+                                 "M25" ~ "M25",
+                                 "M9" ~ "M9",
+                                 "Mostly MM106" ~ "MM106",
+                                 "MM106" ~ "MM106",
+                                 "Pajam 2" ~ "Pajam 2",
+                                 .default = "Mixed")
+
+comb_data$Rootstock[comb_data$Orchard == "Lady Gilberts"] <- "Mixed"
+comb_data$Rootstock[comb_data$Orchard == "Gunnersby Park"] <- "Mixed"
 
 
 
