@@ -226,13 +226,19 @@ save(num_asvs_vec, file="num_asvs_vec.v2.RData")
 
 # Load the phyloseq project saved in set-up step if picking up in a later session
 load("phyloseq-bacteria-rarefied.RData")
+tail(sample_data(pseq_rarefy), 15)
+pseq_noRPT <- subset_samples(pseq_rarefy, Sample.ID != ".*R" & 
+                                                         Sample.ID != "DNA.*" &
+                                                         Sample.ID != "PCR.*" &
+                               Sample.ID != "Pos.*")
+
 
 # Alpha diversity plot
-alpha_plot <- phyloseq::plot_richness(physeq = pseq_rarefy, 
+alpha_plot <- phyloseq::plot_richness(physeq = pseq_noRPT, 
                                       measures = c("Observed","Chao1","Shannon"))
 alpha_plot + theme(axis.text.x = element_text(angle =110))
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_noRPT, 
                         x = "Variety",
                         measures = c("Observed","Chao1","Shannon")) +
   ggplot2::geom_boxplot()
@@ -243,7 +249,7 @@ phyloseq::plot_richness(physeq = pseq_rarefy,
   ggplot2::geom_boxplot()
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "Rootstock",
+                        x = "fruit_type",
                         measures = c("Observed","Chao1","Shannon")) +
   ggplot2::geom_boxplot()
 
@@ -270,10 +276,10 @@ ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "NMDS", distance = "bra
 ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray")
 #Plot ordination
 nmds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.mds.bray,
-                                           color = "intensity", shape = "Variety")
+                                           color = "fruit_type", shape = "orchard_type")
 nmds.bray
 
 
-
-
+is.na(sample_data(pseq_rarefy))
+str(sample_data(pseq_rarefy))
 
