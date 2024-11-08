@@ -75,7 +75,7 @@ smp_data3 <- smp_data2 %>%
 # Create phyloseq type sample data out of the metadata
 smp_data4 <- sample_data(data.frame(smp_data3, row.names = sample_names(physeq), stringsAsFactors = FALSE))
 
-# Merge into a complete phyloseq oject (no tree yet)
+# Merge into a complete phyloseq object (no tree yet)
 ps_bac <- merge_phyloseq(physeq, smp_data4)
 
 # Check the summary and save the phyloseq object
@@ -83,21 +83,30 @@ microbiome::summarize_phyloseq(ps_bac)
 save(ps_bac, file = "phyloseq-bacteria.RData")
 
 # Data exploration and visualisation ----
+# Make a new phyloseq object without repeats and controls
+ps_bac %>%
+  sample_data() %>%
+  as.data.frame() %>%
+  head()
+to_remove <- sample_names(ps_bac)[159:191]
+pseq_noRPT <- prune_samples(!sample_names(ps_bac) %in% to_remove, ps_bac)
+sample_names(pseq_noRPT)
+
 # Extract sample_depths (number of reads per sample)
-sample_depths <- microbiome::readcount(ps_bac)
+sample_depths <- microbiome::readcount(pseq_noRPT)
 sample_depths
 # Histogram of sample depths
 hist(sample_depths, main = "Histogram of read depths")
 
 # Extract row number from the otu_table to get the total number of ASVs in the  data
-num_asvs_vec <- c(nrow(phyloseq::otu_table(ps_bac)))
+num_asvs_vec <- c(nrow(phyloseq::otu_table(pseq_noRPT)))
 names(num_asvs_vec)[1] <- "abundance"
 num_asvs_vec
 save(num_asvs_vec, file = "num-asvs-vec.RData")
 
 
 # Minimum read depth
-abundance_metadf <- phyloseq::sample_data(ps_bac)
+abundance_metadf <- phyloseq::sample_data(pseq_noRPT)
 
 #Check if the vector of sample_depths has the same order as our metadata rows
 head(names(sample_depths))
@@ -118,11 +127,11 @@ boxplot2  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=intensity)) +
   ggplot2::geom_boxplot()
 boxplot2
 
-boxplot3  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=Rootstock)) +
+boxplot3  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=rootstock_group)) +
   ggplot2::geom_boxplot()
 boxplot3
 
-boxplot4  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=Variety)) +
+boxplot4  <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=variety_group)) +
   ggplot2::geom_boxplot() +
   theme(axis.text.x = element_text(angle =110))
 boxplot4
@@ -130,7 +139,7 @@ boxplot4
 
 # Rarefaction curve
 # Extract ASV table as transposed data frame
-asv_abund_df <- as.data.frame(t(phyloseq::otu_table(ps_bac)))
+asv_abund_df <- as.data.frame(t(phyloseq::otu_table(pseq_noRPT)))
 
 # plot the rarefaction curve
 vegan::rarecurve(
@@ -139,9 +148,8 @@ vegan::rarecurve(
   ylab = "ASVs"
 )
 
-
 # Subset and keep samples with more than 6k reads
-ps_min6K <- phyloseq::subset_samples(ps_bac, sample_depths > 6000)
+ps_min6K <- phyloseq::subset_samples(pseq_noRPT, sample_depths > 6000)
 
 #Abundance sums of the 1st six ASVs
 head(phyloseq::taxa_sums(ps_min6K))
@@ -159,9 +167,6 @@ length(phyloseq::taxa_sums(ps_min6K))
 ps_min6K
 
 
-
-
-
 # Taxa relative abundance ----
 # Transform abundance table to a relative abundance (compositional) table
 pseq_relabund <- microbiome::transform(ps_bac, "compositional")
@@ -171,24 +176,20 @@ microbiome::summarize_phyloseq(pseq_relabund)
 microbiome::readcount(pseq_relabund)
 
 
-
-
-
-
-
 # Diversity analysis ----
-# Plot rarefaction curves displaying two different minimum read depths (11k and 6k) as a horizontal line
+# Plot rarefaction curves displaying two different minimum read depths (5k and min read depth of the whole physeq) as a horizontal line
 vegan::rarecurve(
   x = asv_abund_df, step = 50,
-  xlab = "Read depth", ylab = "ASVs", lwd=1, label = F,
+  xlab = "Read depth", ylab = "ASVs", label = F,
   sample = min(microbiome::readcount(ps_min6K))
 )
 
 vegan::rarecurve(
   x = asv_abund_df, step = 50,
   xlab = "Read depth", ylab = "ASVs", lwd=1, label = F,
-  sample = min(microbiome::readcount(ps_bac))
+  sample = min(microbiome::readcount(pseq_noRPT))
 )
+
 
 # 6k seems like a good minimum read depth to rarefy at
 # Rarefaction slopes
@@ -227,10 +228,7 @@ save(num_asvs_vec, file="num_asvs_vec.v2.RData")
 # Load the phyloseq project saved in set-up step if picking up in a later session
 load("phyloseq-bacteria-rarefied.RData")
 tail(sample_data(pseq_rarefy), 15)
-pseq_noRPT <- subset_samples(pseq_rarefy, Sample.ID != ".*R" & 
-                                                         Sample.ID != "DNA.*" &
-                                                         Sample.ID != "PCR.*" &
-                               Sample.ID != "Pos.*")
+
 
 
 # Alpha diversity plot
@@ -239,7 +237,12 @@ alpha_plot <- phyloseq::plot_richness(physeq = pseq_noRPT,
 alpha_plot + theme(axis.text.x = element_text(angle =110))
 
 phyloseq::plot_richness(physeq = pseq_noRPT, 
-                        x = "Variety",
+                        x = "Orchard",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot()
+
+phyloseq::plot_richness(physeq = pseq_noRPT, 
+                        x = "variety_group",
                         measures = c("Observed","Chao1","Shannon")) +
   ggplot2::geom_boxplot()
 
@@ -255,7 +258,7 @@ phyloseq::plot_richness(physeq = pseq_rarefy,
 
 # Produce ggplot object of violin plot
 alpha_violinplot <- phyloseq::plot_richness(physeq = pseq_rarefy, 
-                                            x = "Rootstock",
+                                            x = "rootstock_group",
                                             measures = c("Observed","Chao1","Shannon")) +
   ggplot2::geom_violin()
 alpha_violinplot
@@ -269,15 +272,28 @@ head(alpha_df)
 #Observed
 pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$Rootstock)
 
+head(sample_data(pseq_rarefy))
 
+sample_data(pseq_rarefy)$pH <- as.numeric(sample_data(pseq_rarefy)$pH)
+sample_data(pseq_rarefy)$Conductivity <- as.numeric(sample_data(pseq_rarefy)$Conductivity)
+sample_data(pseq_rarefy)$NO3 <- as.numeric(sample_data(pseq_rarefy)$NO3)
+sample_data(pseq_rarefy)$NO2 <- as.numeric(sample_data(pseq_rarefy)$NO2)
+sample_data(pseq_rarefy)$NH4 <- as.numeric(sample_data(pseq_rarefy)$NH4)
+sample_data(pseq_rarefy)$TON <- as.numeric(sample_data(pseq_rarefy)$TON)
+sample_data(pseq_rarefy)$OM <- as.numeric(sample_data(pseq_rarefy)$OM)
+
+str(sample_data(pseq_rarefy))
 
 # Ordinations ----
-ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "NMDS", distance = "bray")
+dist.mat <- phyloseq::distance(pseq_rarefy, "bray")
+ord.nmds.bray <- phyloseq::ordinate(pseq_rarefy, method = "NMDS", distance = "bray")
 ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray")
 #Plot ordination
-nmds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.mds.bray,
-                                           color = "fruit_type", shape = "orchard_type")
-nmds.bray
+nmds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
+                                            color = "OM")
+nmds.bray + stat_ellipse()
+
+biplot_pcoa(pseq_rarefy, color = "Orchard", shape = "instensity")
 
 
 is.na(sample_data(pseq_rarefy))
