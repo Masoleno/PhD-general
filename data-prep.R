@@ -64,7 +64,6 @@ chem_data <- chem_data %>%
 
 
 # Rounding OM values to 3 dp. 
-
 chem_data$OM <- round(chem_data$OM, 3)
 
 head(chem_data, 20)
@@ -99,8 +98,8 @@ comb_data <- comb_data %>%
   mutate(orchard_age = 2024 - year_planted) %>%
   dplyr::select(- year_planted)
   
-# Renaming factors in Variety and rootstock columns to make sensible groups for plotting and comparisons
-comb_data$Variety <- case_match(comb_data$Variety,
+# Create new variety and rootstock columns to make sensible groups for plotting and comparisons
+comb_data$variety_group <- case_match(comb_data$Variety,
                                "Gala" ~ "Gala",
                                "Brambley" ~ "Bramley",
                                "Kanzi" ~ "Kanzi",
@@ -108,11 +107,12 @@ comb_data$Variety <- case_match(comb_data$Variety,
                                .default = "Mixed")
 
 # Two samples in Lady Gilberts are Bramleys so need changing to "mixed" manually
-comb_data[133, 12] <- "Mixed"
-comb_data[136, 12] <- "Mixed"
+ncol(comb_data)
+comb_data[133, 47] <- "Mixed"
+comb_data[136, 47] <- "Mixed"
 
 
-comb_data$Rootstock <- case_match(comb_data$Rootstock,
+comb_data$rootstock_group <- case_match(comb_data$Rootstock,
                                  "M25" ~ "M25",
                                  "M9" ~ "M9",
                                  "Mostly MM106" ~ "MM106",
@@ -120,8 +120,8 @@ comb_data$Rootstock <- case_match(comb_data$Rootstock,
                                  "Pajam 2" ~ "Pajam 2",
                                  .default = "Mixed")
 
-comb_data$Rootstock[comb_data$Orchard == "Lady Gilberts"] <- "Mixed"
-comb_data$Rootstock[comb_data$Orchard == "Gunnersby Park"] <- "Mixed"
+comb_data$rootstock_group[comb_data$Orchard == "Lady Gilberts"] <- "Mixed"
+comb_data$rootstock_group[comb_data$Orchard == "Gunnersby Park"] <- "Mixed"
 
 
 
