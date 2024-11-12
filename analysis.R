@@ -7,10 +7,12 @@ library(tidyr)      # for data manipulation functions
 #library(report)
 library(rstatix)
 library(ggpubr)
+library(wesanderson)
 
 
 # Read in the csv file created at the end of the data-prep.R script ----
 tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
+
 
 
 
@@ -214,7 +216,7 @@ pwcpHSite <- pwcpHSite %>%
 ggboxplot(pHData, x = "Orchard", y = "pH", color = "intensity") +
   labs(subtitle = get_test_label(pHSiteKruskal,detailed = TRUE),
        caption = get_pwc_label(pwcpHSite), color = "Management Intensity") +
-  theme(axis.text.x = element_text(angle =110))
+  theme(axis.text.x = element_text(angle =110)) + scale_color_manual(values = c("forestgreen", "darkorange"), labels = c("High", "Low"))
 
 ### ANOVA variety ----
 
@@ -384,7 +386,8 @@ pwcOMSite <- pwcOMSite %>%
 ggboxplot(OM_data, x = "Orchard", y = "OM", color = "intensity") +
   labs(subtitle = get_test_label(OMKruskall,detailed = TRUE),
        caption = get_pwc_label(pwcOMSite), y = "OM (%)", color = "Management Intensity") +
-  theme(axis.text.x = element_text(angle =110))
+  theme(axis.text.x = element_text(angle =110)) + theme(axis.text.x = element_text(angle =110)) + 
+  scale_color_manual(values = c("forestgreen", "darkorange"), labels = c("High", "Low"))
 
 ## Moisture ----
 ### Testing for outliers ----
