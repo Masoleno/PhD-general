@@ -14,9 +14,13 @@ library(BiocManager)
 # if (!require("BiocManager", quietly = TRUE))
  # install.packages("BiocManager")
 # BiocManager::install("phyloseq")
+# Use this to install microViz if needed:
+# install.packages(
+ # "microViz",
+#  repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
+library(microViz)
 library(phyloseq)
 library(readr)
-library(BiocManager)
 library(microbiome)
 library(vegan)
 
@@ -226,7 +230,12 @@ save(num_asvs_vec, file="num_asvs_vec.v2.RData")
 load("phyloseq-bacteria-rarefied.RData")
 tail(sample_data(pseq_rarefy), 15)
 
-# Data exploration and visualisation ----
+# Data exploration and visualization ----
+# Load the phyloseq object saved in set-up step if picking up in a later session
+load("phyloseq-bacteria-rarefied.RData")
+load("C:/Users/UKGC/OneDrive - Canterbury Christ Church University/PhD/R-general/num_asvs_vec.v2.RData")
+num_asvs_vec
+
 # Taxa relative abundance ----
 # Transform abundance table to a relative abundance (compositional) table
 pseq_relabund <- microbiome::transform(pseq_rarefy, "compositional")
@@ -246,7 +255,12 @@ alpha_plot + theme(axis.text.x = element_text(angle =110))
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "Orchard",
                         measures = "Shannon") +
-  ggplot2::geom_boxplot()
+  ggplot2::geom_boxplot() + theme_bw() + labs(y = "Shannon's Alpha Diversity") +
+  theme(strip.text.x = element_blank(),
+        strip.background = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(angle =110))
+
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "Orchard",
@@ -255,22 +269,42 @@ phyloseq::plot_richness(physeq = pseq_rarefy,
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "variety_group",
-                        measures = c("Observed","Chao1","Shannon")) +
+                        measures = c("Observed","Shannon")) +
+  ggplot2::geom_boxplot()
+
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "rootstock_group",
+                        measures = "Shannon") +
   ggplot2::geom_boxplot()
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "intensity",
-                        measures = c("Observed","Chao1","Shannon")) +
-  ggplot2::geom_boxplot()
+                        measures = c("Shannon", "Simpson")) +
+  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Shannon's Alpha Diversity") +
+  theme(strip.text.x = element_blank(),
+        strip.background = element_blank()) + scale_x_discrete(labels = c("high" = "High", "low" = "Low"))
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "fruit_type",
-                        measures = c("Observed","Chao1","Shannon")) +
+                        measures = c("Simpson","Shannon")) +
   ggplot2::geom_boxplot()
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "orchard_type",
-                        measures = c("Observed","Chao1","Shannon")) +
+                        measures = c("Observed","Simpson","Shannon")) +
+  ggplot2::geom_boxplot()
+
+
+subset_samples(pseq_rarefy, !orchard_age == "NA") %>%
+    phyloseq::plot_richness(
+                        x = "orchard_age",
+                        measures = c("Shannon")) +
+  ggplot2::geom_boxplot()
+
+subset_samples(pseq_rarefy, !compost == "NA") %>%
+  phyloseq::plot_richness(
+    x = "compost",
+    measures = c("Shannon")) +
   ggplot2::geom_boxplot()
 
 
@@ -283,7 +317,7 @@ head(alpha_df)
 pairwise.wilcox.test(alpha_df$Observed, phyloseq::sample_data(pseq_rarefy)$Orchard)
 
 head(sample_data(pseq_rarefy))
-pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$Orchard)
+pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchard_age)
 
 sample_data(pseq_rarefy)$pH <- as.numeric(sample_data(pseq_rarefy)$pH)
 sample_data(pseq_rarefy)$Conductivity <- as.numeric(sample_data(pseq_rarefy)$Conductivity)
@@ -299,14 +333,54 @@ str(sample_data(pseq_rarefy))
 dist.mat <- phyloseq::distance(pseq_rarefy, "bray")
 ord.nmds.bray <- phyloseq::ordinate(pseq_rarefy, method = "NMDS", distance = "bray")
 ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray")
+ord.cca <- ordinate(pseq_rarefy, "CCA")
+
 #Plot ordination
-nmds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
-                                            color = "OM")
-nmds.bray + stat_ellipse()
+mds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.mds.bray,
+                                            color = "compost")
+mds.bray
+
+pseq_rarefy_filtered <- pseq_rarefy %>%
+  subset_samples(compost != "NA" & pesticides !="NA")
+
+ord.mds2  <- ordinate(pseq_rarefy_filtered, method = "MDS", distance = "bray")
+
+phyloseq::plot_ordination(pseq_rarefy_filtered, ord.mds2, color = "compost", shape = "pesticides")
+
+
+p.cca <- plot_ordination(pseq_rarefy, ord.cca,
+                         type = "samples", color = "fruit_type")
+
+p.cca + geom_point()
+
 
 biplot_pcoa(pseq_rarefy, color = "Orchard", shape = "instensity")
 
 
 is.na(sample_data(pseq_rarefy))
 str(sample_data(pseq_rarefy))
+
+
+
+
+pseq_rarefy %>%
+  tax_transform("clr") %>%
+  ord_calc(
+    constraints = c("pH", "OM"),
+    scale_cc = FALSE
+  ) %>%
+  ord_plot(color = "intensity", shape = "fruit_type", size = 2) +
+  scale_colour_brewer(palette = "Dark2")
+
+
+
+
+
+
+
+
+
+
+
+
 
