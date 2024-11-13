@@ -73,7 +73,7 @@ chem_data <- chem_data %>%
   mutate(intensity = if_else((Orchard =="Burrow Hill Cider")|(Orchard =="Gunnersby Park")|(Orchard =="Lady Gilberts")
                              |(Orchard == "Ragmans Lane Farm")|(Orchard =="North Down Farm"), "low", "high"))
 
-# Filter out unnecessary columns in management data
+# Filter out duplicate columns in management data
 management_data_filtered <- management_data %>%
   select(!c(variety,Rootstock))
 
@@ -94,6 +94,8 @@ comb_data <- comb_data %>%
 comb_data <- comb_data %>%
   mutate(fruit_type = if_else((Orchard == "Ragmans Lane Farm")|(Orchard =="North Down Farm")|(Orchard =="Burrow Hill Cider")
                                 , "Cider", "Dessert"))
+
+# Add orchard age column
 comb_data <- comb_data %>%
   mutate(orchard_age = 2024 - year_planted) %>%
   dplyr::select(- year_planted)
@@ -124,10 +126,21 @@ comb_data$rootstock_group[comb_data$Orchard == "Lady Gilberts"] <- "Mixed"
 comb_data$rootstock_group[comb_data$Orchard == "Gunnersby Park"] <- "Mixed"
 
 
+tidyData <- comb_data
+
+str(tidyData)
+
+tidyData <- tidyData %>%
+  mutate_at(c("NH4", "TON", "NO2", "NO3",
+              "pH", "Conductivity", "PO4"), as.numeric)
 
 
+tidyData <- tidyData %>%
+  mutate_at(c("intensity", "Variety", "Rootstock", "orchard_type", "fruit_type", "orchard_age", "variety_group", "rootstock_group"), as.factor)
 
+str(tidyData)
 
+save(tidyData, file =  "combined-tidy-data.RData")
 write_csv(comb_data, "combined-tidy-data.csv")
 
 
