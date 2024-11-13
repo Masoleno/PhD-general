@@ -247,7 +247,7 @@ microbiome::readcount(pseq_relabund)
 
 # Diversity analysis ----
 
-# Alpha diversity plot
+# Alpha diversity plots ----
 alpha_plot <- phyloseq::plot_richness(physeq = pseq_rarefy, 
                                       measures = c("Observed","Chao1","Shannon"))
 alpha_plot + theme(axis.text.x = element_text(angle =110))
@@ -255,11 +255,14 @@ alpha_plot + theme(axis.text.x = element_text(angle =110))
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "Orchard",
                         measures = "Shannon") +
-  ggplot2::geom_boxplot() + theme_bw() + labs(y = "Shannon's Alpha Diversity") +
+  ggplot2::geom_boxplot(aes(fill = sample_data(pseq_rarefy)$intensity), alpha = 0.5) + 
+  theme_bw() + labs(y = "Shannon's Alpha Diversity", fill = "Management Intensity") +
   theme(strip.text.x = element_blank(),
         strip.background = element_blank(),
         panel.grid = element_blank(),
-        axis.text.x = element_text(angle =110))
+        axis.text.x = element_text(angle =110, face = "bold", size = 12), 
+        axis.title = element_text(face = "bold", size = 15), axis.title.y = element_text(margin = margin(r = 15))) +
+  scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
