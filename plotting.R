@@ -1,56 +1,15 @@
 options(scipen = 999)
 library(tidyverse)
 
-# Read in the csv file created at the end of the data-prep.R script ----
-tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
-
+# Read in the  data or csv file created at the end of the data-prep.R script ----
+load("combined-tidy-data.RData")
+# tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
 # Check the data ----
 str(tidyData)
 head(tidyData)
 
-tidyData <- tidyData %>%
-  mutate_at(c("NH4", "TON", "NO2", "NO3",
-              "pH", "Conductivity", "PO4"), as.numeric)
 
-
-tidyData <- tidyData %>%
-  mutate_at(c("intensity", "Variety", "orchard_type", "fruit_type", "orchard_age"), as.factor)
-
-str(tidyData)
-
-# Renaming factors in Variety and rootstock columns to make sensible groups for plotting and comparisons
-tidyData$Variety <- case_match(tidyData$Variety,
-                               "Gala" ~ "Gala",
-                               "Brambley" ~ "Bramley",
-                               "Kanzi" ~ "Kanzi",
-                               "Red Prince" ~ "Red Prince",
-                               .default = "Mixed")
-
-# Two samples in Lady Gilberts are Bramleys so need changing to "mixed" manually
-tidyData[133, 12] <- "Mixed"
-tidyData[136, 12] <- "Mixed"
-
-
-tidyData$Rootstock <- case_match(tidyData$Rootstock,
-                                 "M25" ~ "M25",
-                                 "M9" ~ "M9",
-                                 "Mostly MM106" ~ "MM106",
-                                 "MM106" ~ "MM106",
-                                 "Pajam 2" ~ "Pajam 2",
-                                 .default = "Mixed")
-
-tidyData$Rootstock[tidyData$Orchard == "Lady Gilberts"] <- "Mixed"
-tidyData$Rootstock[tidyData$Orchard == "Gunnersby Park"] <- "Mixed"
-str(tidyData)
-
-tidyData$Rootstock <- as.factor(tidyData$Rootstock)
-str(tidyData)
-levels(tidyData$Rootstock)
-
-tidyData$Variety <- as.factor(tidyData$Variety)
-str(tidyData)
-levels(tidyData$Variety)
 
 # Filtering out the nutrient data for now since it's incomplete and therefore unnecessary to plot
 noNutrientsData <- tidyData %>%
