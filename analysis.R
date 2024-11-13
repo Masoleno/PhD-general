@@ -8,10 +8,12 @@ library(tidyr)      # for data manipulation functions
 library(rstatix)
 library(ggpubr)
 library(wesanderson)
+library(viridis)
 
 
-# Read in the csv file created at the end of the data-prep.R script ----
-tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
+# Read in the data or csv file created at the end of the data-prep.R script ----
+load("combined-tidy-data.RData")
+# tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
 
 
@@ -20,51 +22,6 @@ tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
 str(tidyData)
 head(tidyData)
-
-tidyData <- tidyData %>%
-  mutate_at(c("NH4", "TON", "NO2", "NO3",
-              "pH", "Conductivity", "PO4"), as.numeric)
-
-
-tidyData <- tidyData %>%
-  mutate_at(c("intensity", "Variety", "orchard_type", "fruit_type", "orchard_age"), as.factor)
-
-str(tidyData)
-
-# Renaming factors in Variety and rootstock columns to make sensible groups for plotting and comparisons
-tidyData$Variety <- case_match(tidyData$Variety,
-             "Gala" ~ "Gala",
-             "Brambley" ~ "Bramley",
-             "Kanzi" ~ "Kanzi",
-             "Red Prince" ~ "Red Prince",
-             .default = "Mixed")
-
-# Two samples in Lady Gilberts are Bramleys so need changing to "mixed" manually
-tidyData[133, 12] <- "Mixed"
-tidyData[136, 12] <- "Mixed"
-
-
-tidyData$Rootstock <- case_match(tidyData$Rootstock,
-                                 "M25" ~ "M25",
-                                 "M9" ~ "M9",
-                                 "Mostly MM106" ~ "MM106",
-                                 "MM106" ~ "MM106",
-                                 "Pajam 2" ~ "Pajam 2",
-                                 .default = "Mixed")
-
-tidyData$Rootstock[tidyData$Orchard == "Lady Gilberts"] <- "Mixed"
-tidyData$Rootstock[tidyData$Orchard == "Gunnersby Park"] <- "Mixed"
-str(tidyData)
-
-tidyData$Rootstock <- as.factor(tidyData$Rootstock)
-str(tidyData)
-levels(tidyData$Rootstock)
-
-tidyData$Variety <- as.factor(tidyData$Variety)
-str(tidyData)
-levels(tidyData$Variety)
-
-
 
 
 # Test all variables for normality and save statistic and p-value as a data frame -----
@@ -196,6 +153,7 @@ ggboxplot(pHData, x = "Orchard", y = "pH", color = "Variety") +
 
 
 ###Kruskal-Wallis ----
+
 pHSiteKruskal <- pHData %>%
   rstatix::kruskal_test(pH ~ Orchard)
 pHSiteKruskal
@@ -213,10 +171,11 @@ pwcpHSite
 pwcpHSite <- pwcpHSite %>%
   add_xy_position(x = "Orchard")
 
-ggboxplot(pHData, x = "Orchard", y = "pH", color = "intensity") +
+ggboxplot(pHData, x = "Orchard", y = "pH", fill = "intensity", alpha = 0.5) +
   labs(subtitle = get_test_label(pHSiteKruskal,detailed = TRUE),
-       caption = get_pwc_label(pwcpHSite), color = "Management Intensity") +
-  theme(axis.text.x = element_text(angle =110)) + scale_color_manual(values = c("forestgreen", "darkorange"), labels = c("High", "Low"))
+       caption = get_pwc_label(pwcpHSite), fill = "Management Intensity") +
+  theme(axis.text.x = element_text(angle =110, face = "bold"), axis.title = element_text(face = "bold")) +
+  scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
 ### ANOVA variety ----
 
@@ -270,6 +229,8 @@ rootstockData <- tidyData %>%
   dplyr::filter(orchard_age !="NA")
 
 
+
+
 ##OM ----
 ###Testing for outliers ----
 # Filter out any rows where OM is negative
@@ -314,10 +275,12 @@ pwcOM
 pwcOM <- pwcOM %>%
   add_xy_position(x = "Orchard")
 
-ggboxplot(OM_data, x = "Orchard", y = "`OM (%)`") +
+ggboxplot(OM_data, x = "Orchard", y = "`OM (%)`", alpha = 0.5) +
   stat_pvalue_manual(pwcOM, hide.ns = TRUE) +
   labs(subtitle = get_test_label(anovaOMSite,detailed = TRUE),
-       caption = get_pwc_label(pwcOM))
+       caption = get_pwc_label(pwcOM)) +
+  theme(axis.text.x = element_text(angle =110, face = "bold"), axis.title = element_text(face = "bold")) +
+  scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
 ### Kruskal-Wallis variety ----
 
@@ -383,11 +346,11 @@ pwcOMSite
 pwcOMSite <- pwcOMSite %>%
   add_xy_position(x = "Orchard")
 
-ggboxplot(OM_data, x = "Orchard", y = "OM", color = "intensity") +
+ggboxplot(OM_data, x = "Orchard", y = "OM", fill = "intensity", alpha = 0.5) +
   labs(subtitle = get_test_label(OMKruskall,detailed = TRUE),
-       caption = get_pwc_label(pwcOMSite), y = "OM (%)", color = "Management Intensity") +
-  theme(axis.text.x = element_text(angle =110)) + theme(axis.text.x = element_text(angle =110)) + 
-  scale_color_manual(values = c("forestgreen", "darkorange"), labels = c("High", "Low"))
+       caption = get_pwc_label(pwcOMSite), y = "OM (%)", fill = "Management Intensity") +
+  theme(axis.text.x = element_text(angle =110, face = "bold"), axis.title = element_text(face = "bold")) +
+  scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
 ## Moisture ----
 ### Testing for outliers ----
@@ -683,7 +646,8 @@ OMPlot <- ggboxplot(OM_data, x = "intensity", y = "OM",
 
 OMPlot + 
   stat_pvalue_manual(WilcoxTestOM, tip.length = 0) +
-  labs(subtitle = get_test_label(WilcoxTestOM, detailed = TRUE))
+  labs(subtitle = get_test_label(WilcoxTestOM, detailed = TRUE)) +
+  theme(axis.title = element_text(face = "bold"), axis.text.x = element_text(face = "bold")) + scale_x_discrete(labels = c("High", "Low"))
 
 
 ## OM and pesticides ----
@@ -750,10 +714,12 @@ WilcoxTestOM3 <- WilcoxTestOM3 %>%
 OMPlot3 <- ggboxplot(OM_data, x = "fruit_type", y = "OM",
                     ylab = "Organic Matter (%)", xlab = "Crop Type")  
 
-OMPlot3 + 
+OMPlot3 <- OMPlot3 + 
   stat_pvalue_manual(WilcoxTestOM3, tip.length = 0) +
-  labs(subtitle = get_test_label(WilcoxTestOM3, detailed = TRUE))
+  labs(subtitle = get_test_label(WilcoxTestOM3, detailed = TRUE)) +
+  theme(axis.title.x = element_text(face = "bold"), axis.text.x = element_text(face = "bold"))
 
+OMPlot3
 
 ## OM and orchard category
 ggqqplot(OM_data, x = "OM", facet.by = "orchard_type")
@@ -777,9 +743,25 @@ WilcoxTestOM4 <- WilcoxTestOM4 %>%
 OMPlot4 <- ggboxplot(OM_data, x = "orchard_type", y = "OM",
                      ylab = "Organic Matter (%)", xlab = "Orchard Type")  
 
-OMPlot4 + 
+OMPlot4 <- OMPlot4 + 
   stat_pvalue_manual(WilcoxTestOM4, tip.length = 0) +
-  labs(subtitle = get_test_label(WilcoxTestOM4, detailed = TRUE))
+  labs(subtitle = get_test_label(WilcoxTestOM4, detailed = TRUE)) +
+  theme(axis.title.x = element_text(face = "bold"), axis.text.x = element_text(face = "bold"))
+
+
+OMPlot4
+
+# Combine OMPlot3 and 4 for BSSS presentation
+
+om.plot.combined <- ggarrange(OMPlot4 + rremove("ylab"), OMPlot3 + rremove("ylab") + rremove("y.text"))
+
+om.plot.combined
+
+om.plot.combined <- annotate_figure(om.plot.combined, 
+                                    left = text_grob("Organic Matter (%)", face = "bold", rot = 90))
+
+
+om.plot.combined
 
 
 
