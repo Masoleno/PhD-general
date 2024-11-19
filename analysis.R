@@ -676,7 +676,10 @@ OMPlot2
 OMPlot2 + 
   stat_pvalue_manual(WilcoxTestOM2, tip.length = 0) +
   labs(subtitle = get_test_label(WilcoxTestOM2, detailed = TRUE)) +
-  theme(axis.title = element_text(face = "bold"), axis.text.x = element_text(face = "bold")) + scale_x_discrete(labels = c("Cider/Commercial", "Dessert/Charity"))
+  theme(axis.title = element_text(face = "bold"), 
+        axis.text.x = element_text(face = "bold"),
+        axis.title.y = element_text(margin = margin(r = 15))) + 
+  scale_x_discrete(labels = c("Cider/Commercial", "Dessert/Charity")) 
 
 
 ## OM and pesticides ----
