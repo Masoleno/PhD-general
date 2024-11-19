@@ -5,6 +5,7 @@ library(tidyr)      # for data manipulation functions
 #library(broom)      # for function `tidy`
 #library(car)
 #library(report)
+library(coin)
 library(rstatix)
 library(ggpubr)
 library(wesanderson)
@@ -648,6 +649,34 @@ OMPlot +
   stat_pvalue_manual(WilcoxTestOM, tip.length = 0) +
   labs(subtitle = get_test_label(WilcoxTestOM, detailed = TRUE)) +
   theme(axis.title = element_text(face = "bold"), axis.text.x = element_text(face = "bold")) + scale_x_discrete(labels = c("High", "Low"))
+
+
+OM.low <- tidyData %>%
+  dplyr::filter(intensity == "low")
+
+glimpse(OM.low)
+summary(OM.low)
+
+WilcoxTestOM2 <- OM.low %>%
+  rstatix::wilcox_test(OM ~ fruit_type) %>%
+  add_significance()
+WilcoxTestOM2
+
+
+OM.low %>%
+  wilcox_effsize(OM ~ fruit_type)
+
+WilcoxTestOM2 <- WilcoxTestOM2 %>%
+  add_xy_position(x = "fruit_type")
+
+OMPlot2 <- ggboxplot(OM.low, x = "fruit_type", y = "OM",
+                    ylab = "Organic Matter (%)", xlab = "Fruit Type")  
+OMPlot2
+
+OMPlot2 + 
+  stat_pvalue_manual(WilcoxTestOM2, tip.length = 0) +
+  labs(subtitle = get_test_label(WilcoxTestOM2, detailed = TRUE)) +
+  theme(axis.title = element_text(face = "bold"), axis.text.x = element_text(face = "bold")) + scale_x_discrete(labels = c("Cider/Commercial", "Dessert/Charity"))
 
 
 ## OM and pesticides ----
