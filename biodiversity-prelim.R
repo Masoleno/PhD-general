@@ -6,6 +6,7 @@
 # Dr Alec Forsyth
 
 # Load libraries
+library(phyloseq)
 library(tidyverse)
 library(ggplot2)
 library(ggpubr)
@@ -17,9 +18,8 @@ library(BiocManager)
 # Use this to install microViz if needed:
 # install.packages(
  # "microViz",
-#  repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
+# repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
 library(microViz)
-library(phyloseq)
 library(readr)
 library(microbiome)
 library(vegan)
@@ -226,14 +226,11 @@ save(pseq_noRPT, file = "phyloseq-bacteria-noRPTs.RData")
 # ASV count save
 save(num_asvs_vec, file="num_asvs_vec.v2.RData")
 
-# Load the phyloseq project saved in set-up step if picking up in a later session
-load("phyloseq-bacteria-rarefied.RData")
-tail(sample_data(pseq_rarefy), 15)
 
 # Data exploration and visualization ----
 # Load the phyloseq object saved in set-up step if picking up in a later session
 load("phyloseq-bacteria-rarefied.RData")
-load("C:/Users/UKGC/OneDrive - Canterbury Christ Church University/PhD/R-general/num_asvs_vec.v2.RData")
+load("num_asvs_vec.v2.RData")
 num_asvs_vec
 
 # Taxa relative abundance ----
