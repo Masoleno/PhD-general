@@ -314,7 +314,7 @@ head(alpha_df)
 
 #Paired wilcoxon test
 #Observed
-pairwise.wilcox.test(alpha_df$Observed, phyloseq::sample_data(pseq_rarefy)$Orchard)
+pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$Orchard)
 
 head(sample_data(pseq_rarefy))
 pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchard_age)

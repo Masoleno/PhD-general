@@ -17,8 +17,6 @@ load("combined-tidy-data.RData")
 # tidyData <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
 
-
-
 # Check the data
 
 str(tidyData)
