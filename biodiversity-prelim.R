@@ -48,6 +48,8 @@ head(taxonomy)
 ASV_mat <- as.matrix(ASVs)
 taxa_mat <-as.matrix(taxonomy)
 
+head(taxa_mat)
+
 # Make a phyloseq object with the ASV matrix and the taxonomy matrix
 physeq <- phyloseq(otu_table(ASV_mat, taxa_are_rows = TRUE), tax_table(taxa_mat))
 
@@ -242,6 +244,37 @@ microbiome::summarize_phyloseq(pseq_relabund)
 microbiome::readcount(pseq_relabund)
 
 
+head(phyloseq::tax_table(pseq_relabund), 30)
+
+phylum_pseq <- pseq_rarefy %>%
+  aggregate_taxa(level = "phylum") %>%
+  transform("compositional")
+
+head(phyloseq::otu_table(phylum_pseq))
+head(phyloseq::tax_table(phylum_pseq))
+
+phylum_pseq <- tax_glom(phylum_pseq, "phylum")
+head(phyloseq::tax_table(phylum_pseq))
+
+view(phyloseq::tax_table(phylum_pseq))
+paste0("Number of phyla: ", nrow(phyloseq::otu_table(phylum_pseq)))
+
+microbiome::summarize_phyloseq(phylum_pseq)
+microbiome::readcount(phylum_pseq)
+
+tax_table(phylum_pseq)[,colnames(tax_table(phylum_pseq))] <- gsub(tax_table(phylum_pseq)[,colnames(tax_table(phylum_pseq))],pattern=".*_", replacement="")
+head(phyloseq::tax_table(phylum_pseq))
+
+taxa_names(phylum_pseq) <- gsub(taxa_names(phylum_pseq), pattern=".*Bacteria", replacement="")
+
+head(phyloseq::tax_table(phylum_pseq))
+
+
+bar.rel.abund <- plot_composition(phylum_pseq, 
+                                  avergae.by = "Orchard", verbose = TRUE)
+
+bar.rel.abund
+
 # Diversity analysis ----
 
 # Alpha diversity plots ----
@@ -251,7 +284,7 @@ alpha_plot + theme(axis.text.x = element_text(angle =110))
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "Orchard",
-                        measures = "Shannon") +
+                        measures = "Observed") +
   ggplot2::geom_boxplot(aes(fill = sample_data(pseq_rarefy)$intensity), alpha = 0.5) + 
   theme_bw() + labs(y = "Shannon's Alpha Diversity", fill = "Management Intensity") +
   theme(strip.text.x = element_blank(),
@@ -279,14 +312,14 @@ phyloseq::plot_richness(physeq = pseq_rarefy,
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "intensity",
-                        measures = c("Shannon", "Simpson")) +
-  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Shannon's Alpha Diversity") +
+                        measures = "Observed") +
+  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Taxa Richness") +
   theme(strip.text.x = element_blank(),
         strip.background = element_blank()) + scale_x_discrete(labels = c("high" = "High", "low" = "Low"))
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
                         x = "fruit_type",
-                        measures = c("Simpson","Shannon")) +
+                        measures = "Observed") +
   ggplot2::geom_boxplot()
 
 phyloseq::plot_richness(physeq = pseq_rarefy, 
@@ -294,6 +327,11 @@ phyloseq::plot_richness(physeq = pseq_rarefy,
                         measures = c("Observed","Simpson","Shannon")) +
   ggplot2::geom_boxplot()
 
+subset_samples(pseq_rarefy, orchard_type == "Charity") %>%
+  phyloseq::plot_richness(
+    x = "Orchard",
+    measures = c("Observed")) +
+  ggplot2::geom_boxplot()
 
 subset_samples(pseq_rarefy, !orchard_age == "NA") %>%
     phyloseq::plot_richness(
@@ -312,8 +350,49 @@ subset_samples(pseq_rarefy, !compost == "NA") %>%
 alpha_df <- phyloseq::estimate_richness(physeq = pseq_rarefy)
 head(alpha_df)
 
+sample_data(pseq_rarefy)$richness <- as.numeric(alpha_df$Observed)
+sample_data(pseq_rarefy)$shannon <- as.numeric(alpha_df$Shannon)
+sample_data(pseq_rarefy)
+
+str(sample_data(pseq_rarefy))
+
+wisley.samples <- pseq_rarefy %>%
+  subset_samples(Orchard == "Wisley") 
+
+wisley.samples
+
+ntaxa(wisley.samples)
+
+summarize_phyloseq(wisley.samples)
+
+sample_data(wisley.samples) %>%
+  data.frame() %>%
+  summarise(mean.richness = mean(richness))
+
+
+summary.data <- sample_data(pseq_rarefy) %>%
+  data.frame() %>%
+  group_by(Orchard) %>%
+  summarise(mean.richness = mean(richness)) 
+
+ntaxa(pseq_rarefy)
+
+head(sample_data(wisley.samples))
+tail(sample_data(wisley.samples))
+
+sample_data(wisley.samples)$orientation <- ifelse(sample_data(wisley.samples)$Sample.ID <= 57, "south", "north")
+
+plot_richness(wisley.samples, x = "orientation", measures = "Observed") +
+  geom_boxplot()
+
+wisley.alpha <- estimate_richness(wisley.samples)
+head(wisley.alpha)
+str(wisley.alpha)
 #Paired wilcoxon test
 #Observed
+sample_data(wisley.samples)$richness <- as.numeric(sample_data(wisley.samples)$richness)
+pairwise.wilcox.test(wisley.alpha$Observed, phyloseq::sample_data(wisley.samples)$orientation)
+
 pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$Orchard)
 
 head(sample_data(pseq_rarefy))
