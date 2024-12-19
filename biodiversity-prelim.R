@@ -31,7 +31,6 @@ ASVs <- read_csv("ps_countmat_2.csv")
 # Read in the taxonomy table showing the taxonomy of each ASV
 # column types need to be specified as otherwise it throws parsing errors
 taxonomy <- read_csv("ps_taxamat.csv", col_types = list(
-  ...1 = "c",
   kingdom = "c",
   phylum = "c",
   class ="c",
@@ -44,10 +43,15 @@ taxonomy <- read_csv("ps_taxamat.csv", col_types = list(
 head(ASVs)
 head(taxonomy)
 
+taxonomy$...1 <- NULL
+head(taxonomy, 30)
+tail(taxonomy)
+
 # Turn into matrices
 ASV_mat <- as.matrix(ASVs)
 taxa_mat <-as.matrix(taxonomy)
 
+head(ASV_mat)
 head(taxa_mat)
 
 # Make a phyloseq object with the ASV matrix and the taxonomy matrix
@@ -92,7 +96,7 @@ ps_bac <- merge_phyloseq(physeq, smp_data4)
 
 # Check the summary of the phyloseq object
 microbiome::summarize_phyloseq(ps_bac)
-
+ps_bac
 
 # Make a new phyloseq object without repeats and controls
 ps_bac %>%
@@ -102,6 +106,9 @@ ps_bac %>%
 to_remove <- sample_names(ps_bac)[159:191]
 pseq_noRPT <- prune_samples(!sample_names(ps_bac) %in% to_remove, ps_bac)
 sample_names(pseq_noRPT)
+
+rank_names(pseq_noRPT)
+head(tax_table(pseq_noRPT))
 
 # Extract sample_depths (number of reads per sample)
 sample_depths <- microbiome::readcount(pseq_noRPT)
@@ -217,6 +224,7 @@ pseq_rarefy <- phyloseq::rarefy_even_depth(
 # Summarise and check sample counts which should each amount to 9332 (min depth)
 microbiome::summarize_phyloseq(pseq_rarefy)
 microbiome::readcount(pseq_rarefy)
+
 # ASV counts
 # Add relative abundance ASV count
 num_asvs_vec["rarefied"] <- nrow(phyloseq::otu_table(pseq_rarefy))
@@ -235,6 +243,15 @@ load("phyloseq-bacteria-rarefied.RData")
 load("num_asvs_vec.v2.RData")
 num_asvs_vec
 
+taxa_names(pseq_rarefy)
+phyloseq::tax_table(pseq_rarefy)[1:5, 1:5]
+colnames(tax_table(pseq_rarefy))
+
+tax_table(pseq_rarefy)[, colnames(tax_table(pseq_rarefy))] <- gsub(tax_table(pseq_rarefy)[,
+                                                                                          colnames(tax_table(pseq_rarefy))],
+                                                                   pattern = "[a-z]__", replacement = "")
+phyloseq::tax_table(pseq_rarefy)[1:30, 1:5]
+
 # Taxa relative abundance ----
 # Transform abundance table to a relative abundance (compositional) table
 pseq_relabund <- microbiome::transform(pseq_rarefy, "compositional")
@@ -246,14 +263,14 @@ microbiome::readcount(pseq_relabund)
 
 head(phyloseq::tax_table(pseq_relabund), 30)
 
-phylum_pseq <- pseq_rarefy %>%
+phylum_pseq <- ps_bac %>%
   aggregate_taxa(level = "phylum") %>%
   transform("compositional")
 
 head(phyloseq::otu_table(phylum_pseq))
 head(phyloseq::tax_table(phylum_pseq))
 
-phylum_pseq <- tax_glom(phylum_pseq, "phylum")
+phylum_pseq <- tax_glom(phylum_pseq, "phylum", NArm = TRUE, bad_empty = "Unknown")
 head(phyloseq::tax_table(phylum_pseq))
 
 view(phyloseq::tax_table(phylum_pseq))
@@ -262,18 +279,39 @@ paste0("Number of phyla: ", nrow(phyloseq::otu_table(phylum_pseq)))
 microbiome::summarize_phyloseq(phylum_pseq)
 microbiome::readcount(phylum_pseq)
 
-tax_table(phylum_pseq)[,colnames(tax_table(phylum_pseq))] <- gsub(tax_table(phylum_pseq)[,colnames(tax_table(phylum_pseq))],pattern=".*_", replacement="")
-head(phyloseq::tax_table(phylum_pseq))
-
-taxa_names(phylum_pseq) <- gsub(taxa_names(phylum_pseq), pattern=".*Bacteria", replacement="")
 
 head(phyloseq::tax_table(phylum_pseq))
 
 
-bar.rel.abund <- plot_composition(phylum_pseq, 
-                                  avergae.by = "Orchard", verbose = TRUE)
+bar.rel.abund <- plot_composition(phylum_pseq,
+                                  average_by = "Orchard") +
+  labs(x = "Site", y = "Relative Abundance", fill = "Phyla") +
+  scale_x_discrete(labels = c("Dessert 1", "Dessert 2", "Cider 1", "Dessert 3", "Charity 1", "Dessert 4", "Charity 2",
+                            "Dessert 5", "Cider 2", "Dessert 6", "Dessert 7", "Cider 3", "Dessert 8", "Wisley"))
 
 bar.rel.abund
+
+bar.rel.abund2 <- plot_composition(phylum_pseq,
+                                  average_by = "intensity") +
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Phyla")
+
+bar.rel.abund2
+
+
+bar.rel.abund3 <- plot_composition(phylum_pseq,
+                                   average_by = "orchard_type") +
+  labs(x = "Orchard Type", y = "Relative Abundance", fill = "Phyla")
+
+bar.rel.abund3
+
+bar.rel.abund4 <- plot_composition(phylum_pseq,
+                                   average_by = "fruit_type") +
+  labs(x = "Fruit Type", y = "Relative Abundance", fill = "Phyla")
+
+bar.rel.abund4
+
+
+
 
 # Diversity analysis ----
 
@@ -356,38 +394,7 @@ sample_data(pseq_rarefy)
 
 str(sample_data(pseq_rarefy))
 
-wisley.samples <- pseq_rarefy %>%
-  subset_samples(Orchard == "Wisley") 
 
-wisley.samples
-
-ntaxa(wisley.samples)
-
-summarize_phyloseq(wisley.samples)
-
-sample_data(wisley.samples) %>%
-  data.frame() %>%
-  summarise(mean.richness = mean(richness))
-
-
-summary.data <- sample_data(pseq_rarefy) %>%
-  data.frame() %>%
-  group_by(Orchard) %>%
-  summarise(mean.richness = mean(richness)) 
-
-ntaxa(pseq_rarefy)
-
-head(sample_data(wisley.samples))
-tail(sample_data(wisley.samples))
-
-sample_data(wisley.samples)$orientation <- ifelse(sample_data(wisley.samples)$Sample.ID <= 57, "south", "north")
-
-plot_richness(wisley.samples, x = "orientation", measures = "Observed") +
-  geom_boxplot()
-
-wisley.alpha <- estimate_richness(wisley.samples)
-head(wisley.alpha)
-str(wisley.alpha)
 #Paired wilcoxon test
 #Observed
 sample_data(wisley.samples)$richness <- as.numeric(sample_data(wisley.samples)$richness)
