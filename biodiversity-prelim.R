@@ -285,9 +285,7 @@ head(phyloseq::tax_table(phylum_pseq))
 
 bar.rel.abund <- plot_composition(phylum_pseq,
                                   average_by = "Orchard") +
-  labs(x = "Site", y = "Relative Abundance", fill = "Phyla") +
-  scale_x_discrete(labels = c("Dessert 1", "Dessert 2", "Cider 1", "Dessert 3", "Charity 1", "Dessert 4", "Charity 2",
-                            "Dessert 5", "Cider 2", "Dessert 6", "Dessert 7", "Cider 3", "Dessert 8", "Wisley"))
+  labs(x = "Site", y = "Relative Abundance", fill = "Phyla") 
 
 bar.rel.abund
 
