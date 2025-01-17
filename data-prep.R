@@ -52,6 +52,7 @@ chem_data <- chem_data %>%
   )
 
 head(chem_data)
+tail(chem_data)
 str(chem_data)
 
 ## Replacing negative values in the moisture and nutrient columns with 0 and rounding moisture and nutrient values to 2 dp. 
@@ -82,7 +83,8 @@ management_data_filtered <- management_data %>%
 # Combine the two datasets 
 comb_data <- merge(chem_data, management_data_filtered, by = "Orchard", all.x = TRUE, all.y = TRUE)
 
-# Check that no Sample.ID column is empty (this happens if orchard names aren't matching in the two Orchard columns when merging the df's)
+# Check that no Sample.ID column is empty (this happens if orchard names aren't matching in the two Orchard columns when merging 
+# the df's)
 which(is.na(comb_data$Sample.ID))
 
 # Add a categorical column for charity vs commercial orchard
@@ -136,9 +138,12 @@ tidyData <- tidyData %>%
 
 
 tidyData <- tidyData %>%
-  mutate_at(c("intensity", "Variety", "Rootstock", "orchard_type", "fruit_type", "orchard_age", "variety_group", "rootstock_group"), as.factor)
+  mutate_at(c("intensity", "Variety", "Rootstock", "orchard_type", "fruit_type", "orchard_age",
+              "variety_group", "rootstock_group"), as.factor)
 
 str(tidyData)
+head(tidyData)
+tail(tidyData)
 
 save(tidyData, file =  "combined-tidy-data.RData")
 write_csv(comb_data, "combined-tidy-data.csv")

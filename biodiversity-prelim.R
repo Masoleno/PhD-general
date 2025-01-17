@@ -60,10 +60,12 @@ physeq <- phyloseq(otu_table(ASV_mat, taxa_are_rows = TRUE), tax_table(taxa_mat)
 # Read in metadata data (produced at the end of the data-prep.R script)
 smp_data <- read.csv("combined-tidy-data.csv", na.strings = c(""))
 
+
 # Remove some  extra text in the Sample.ID column so that the sample id's match those in the ASV table
 smp_data$Sample.ID <- gsub("1-.*A00", "", smp_data$Sample.ID)
 smp_data$Sample.ID <- gsub("1-.*A0", "", smp_data$Sample.ID)
 str(smp_data)
+
 # Arrange in ascending order by sample
 ## First convert to numeric
 smp_data$Sample.ID <- as.numeric(smp_data$Sample.ID)
@@ -420,9 +422,9 @@ ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray
 ord.cca <- ordinate(pseq_rarefy, "CCA")
 
 #Plot ordination
-mds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.mds.bray,
-                                            color = "compost")
-mds.bray
+nmds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
+                                            color = "fruit_type")
+nmds.bray
 
 pseq_rarefy_filtered <- pseq_rarefy %>%
   subset_samples(compost != "NA" & pesticides !="NA")
