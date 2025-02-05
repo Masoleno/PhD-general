@@ -11,14 +11,14 @@ library(tidyverse)
 library(ggplot2)
 library(ggpubr)
 library(BiocManager)
-# Use the below code to install BiocManager and phyloseq if needed:
-# if (!require("BiocManager", quietly = TRUE))
- # install.packages("BiocManager")
-# BiocManager::install("phyloseq")
-# Use this to install microViz if needed:
-# install.packages(
- # "microViz",
-# repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
+ # Use the below code to install BiocManager and phyloseq if needed:
+ # if (!require("BiocManager", quietly = TRUE))
+ #  install.packages("BiocManager")
+ # BiocManager::install("phyloseq")
+ # # Use this to install microViz if needed:
+ # install.packages(
+ #  "microViz",
+ #  repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
 library(microViz)
 library(readr)
 library(microbiome)
@@ -26,7 +26,7 @@ library(vegan)
 
 # Set-up ----
 # Read in the ASV table with number of reads per sample (produced with dada2)
-ASVs <- read_csv("ps_countmat_2.csv")
+ASVs <- read_csv("ps_countmat.csv")
 
 # Read in the taxonomy table showing the taxonomy of each ASV
 # column types need to be specified as otherwise it throws parsing errors
@@ -44,18 +44,27 @@ head(ASVs)
 head(taxonomy)
 
 taxonomy$...1 <- NULL
-head(taxonomy, 30)
+head(taxonomy)
 tail(taxonomy)
+head(ASVs)
+tail(ASVs)
 
 # Turn into matrices
 ASV_mat <- as.matrix(ASVs)
 taxa_mat <-as.matrix(taxonomy)
 
 head(ASV_mat)
+class(ASV_mat)
 head(taxa_mat)
+class(taxa_mat)
 
 # Make a phyloseq object with the ASV matrix and the taxonomy matrix
-physeq <- phyloseq(otu_table(ASV_mat, taxa_are_rows = TRUE), tax_table(taxa_mat))
+OTU = otu_table(ASV_mat, taxa_are_rows = TRUE)
+TAX = tax_table(taxa_mat)
+OTU
+TAX
+physeq <- phyloseq(OTU, TAX)
+physeq
 
 # Read in metadata data (produced at the end of the data-prep.R script)
 smp_data <- read.csv("combined-tidy-data.csv", na.strings = c(""))
@@ -82,6 +91,7 @@ ASV_smps <- colnames(ASVs)
 ASV_smps
 smp_data2 <- smp_data %>%
   filter(Sample.ID %in% ASV_smps)
+head(smp_data2)
 
 # Add empty rows for the repeats and controls to match with the phyloseq sample names
 sample_names(physeq)
@@ -138,6 +148,10 @@ identical(names(sample_depths),row.names(abundance_metadf))
 abundance_metadf[,"depth"] <- sample_depths
 #View top 6 rows of edited metadata dataframe
 head(abundance_metadf)
+class(abundance_metadf)
+
+# add sample depths to original metadata 
+smp_data2$depth <- sample_depths
 
 # Boxplots of read depth by groupings
 boxplot <- boxplot <- ggplot2::ggplot(abundance_metadf, aes(y=depth, x=Orchard)) +
@@ -161,6 +175,7 @@ boxplot4
 # Rarefaction curve
 # Extract ASV table as transposed data frame
 asv_abund_df <- as.data.frame(t(phyloseq::otu_table(pseq_noRPT)))
+min(microbiome::readcount(pseq_noRPT))
 
 # plot the rarefaction curve
 vegan::rarecurve(
@@ -203,10 +218,9 @@ vegan::rarecurve(
 )
 
 
-# 6k seems like a good minimum read depth to rarefy at
 # Rarefaction slopes
 rarefaction_slopes <- vegan::rareslope(
-  x = asv_abund_df, sample = min(microbiome::readcount(ps_min6K)))
+  x = asv_abund_df, sample = min(microbiome::readcount(pseq_noRPT)))
   
 # View slopes from lowest to highest value
 sort(rarefaction_slopes)
@@ -219,13 +233,14 @@ hist(rarefaction_slopes)
 
 # Rarefy to minimum depth
 pseq_rarefy <- phyloseq::rarefy_even_depth(
-  ps_min6K, sample.size = min(microbiome::readcount(ps_min6K)),
+  pseq_noRPT, sample.size = min(microbiome::readcount(pseq_noRPT)),
   rngseed = 1000
 )
 
 # Summarise and check sample counts which should each amount to 9332 (min depth)
 microbiome::summarize_phyloseq(pseq_rarefy)
 microbiome::readcount(pseq_rarefy)
+pseq_noRPT
 
 # ASV counts
 # Add relative abundance ASV count
@@ -242,30 +257,109 @@ save(num_asvs_vec, file="num_asvs_vec.v2.RData")
 # Data exploration and visualization ----
 # Load the phyloseq object saved in set-up step if picking up in a later session
 load("phyloseq-bacteria-rarefied.RData")
+load("phyloseq-bacteria-noRPTs.RData")
 load("num_asvs_vec.v2.RData")
 num_asvs_vec
 
 taxa_names(pseq_rarefy)
 phyloseq::tax_table(pseq_rarefy)[1:5, 1:5]
 colnames(tax_table(pseq_rarefy))
-
-tax_table(pseq_rarefy)[, colnames(tax_table(pseq_rarefy))] <- gsub(tax_table(pseq_rarefy)[,
-                                                                                          colnames(tax_table(pseq_rarefy))],
-                                                                   pattern = "[a-z]__", replacement = "")
 phyloseq::tax_table(pseq_rarefy)[1:30, 1:5]
 
-# Taxa relative abundance ----
-# Transform abundance table to a relative abundance (compositional) table
-pseq_relabund <- microbiome::transform(pseq_rarefy, "compositional")
 
-#Summarise and check sample counts which should each amount to 1
-microbiome::summarize_phyloseq(pseq_relabund)
-microbiome::readcount(pseq_relabund)
+# Diversity analysis ----
+## Alpha diversity plots ----
+alpha_plot <- phyloseq::plot_richness(physeq = pseq_rarefy, 
+                                      measures = c("Observed","Chao1","Shannon"))
+alpha_plot 
+
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "Orchard",
+                        measures = "Observed") +
+  ggplot2::geom_boxplot(aes(fill = sample_data(pseq_rarefy)$intensity), alpha = 0.5) + 
+  theme_bw() + labs(y = "Shannon's Alpha Diversity", fill = "Management Intensity") +
+  theme(strip.text.x = element_blank(),
+        strip.background = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(angle =110, face = "bold", size = 12), 
+        axis.title = element_text(face = "bold", size = 15), axis.title.y = element_text(margin = margin(r = 15))) +
+  scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
 
-head(phyloseq::tax_table(pseq_relabund), 30)
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "Orchard",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot()
 
-phylum_pseq <- ps_bac %>%
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "variety_group",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot()
+
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "rootstock_group",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot()
+
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "intensity",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Shannon's Diversity") +
+  theme(strip.text.x = element_blank(),
+        strip.background = element_blank()) + scale_x_discrete(labels = c("high" = "High", "low" = "Low"))
+
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "fruit_type",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot()
+
+phyloseq::plot_richness(physeq = pseq_rarefy, 
+                        x = "orchard_type",
+                        measures = "Shannon") +
+  ggplot2::geom_boxplot()
+
+subset_samples(pseq_rarefy, orchard_type == "Charity") %>%
+  phyloseq::plot_richness(
+    x = "Orchard",
+    measures = c("Shannon")) +
+  ggplot2::geom_boxplot()
+
+subset_samples(pseq_rarefy, !orchard_age == "NA") %>%
+    phyloseq::plot_richness(
+                        x = "orchard_age",
+                        measures = c("Shannon")) +
+  ggplot2::geom_boxplot()
+
+subset_samples(pseq_rarefy, !compost == "NA") %>%
+  phyloseq::plot_richness(
+    x = "compost",
+    measures = c("Shannon")) +
+  ggplot2::geom_boxplot()
+
+
+## Alpha stats ----
+# Produce data frame of all alpha diversity values
+alpha_df <- phyloseq::estimate_richness(physeq = pseq_rarefy)
+head(alpha_df)
+row.names(alpha_df) <- smp_data2$Sample.ID
+row.names(alpha_df)
+
+# Add Shannon and Observed to metadata data frame and save
+smp_data2$Shannon <- alpha_df$Shannon
+smp_data2$Observed <- alpha_df$Observed
+write.csv(smp_data2, "tidy-data-16S-diversity.csv")
+# Save the richness df as csv file
+write.csv(alpha_df, "16S-diversity-metrics.csv")
+
+# Paired wilcoxon 
+pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$Orchard)
+pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$intensity)
+pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$fruit_type)
+pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchard_type)
+
+# Rel. abundance plots ----
+### Phylum ----
+phylum_pseq <- pseq_noRPT %>%
   aggregate_taxa(level = "phylum") %>%
   transform("compositional")
 
@@ -274,6 +368,7 @@ head(phyloseq::tax_table(phylum_pseq))
 
 phylum_pseq <- tax_glom(phylum_pseq, "phylum", NArm = TRUE, bad_empty = "Unknown")
 head(phyloseq::tax_table(phylum_pseq))
+
 
 view(phyloseq::tax_table(phylum_pseq))
 paste0("Number of phyla: ", nrow(phyloseq::otu_table(phylum_pseq)))
@@ -292,7 +387,7 @@ bar.rel.abund <- plot_composition(phylum_pseq,
 bar.rel.abund
 
 bar.rel.abund2 <- plot_composition(phylum_pseq,
-                                  average_by = "intensity") +
+                                   average_by = "intensity") +
   labs(x = "Management Intensity", y = "Relative Abundance", fill = "Phyla")
 
 bar.rel.abund2
@@ -310,110 +405,53 @@ bar.rel.abund4 <- plot_composition(phylum_pseq,
 
 bar.rel.abund4
 
+### Family ----
+family_pseq <- pseq_noRPT %>%
+  aggregate_taxa(level = "family") %>%
+  transform("compositional")
+
+head(phyloseq::otu_table(family_pseq))
+head(phyloseq::tax_table(family_pseq))
+
+family_pseq <- tax_glom(family_pseq, "family", NArm = TRUE, bad_empty = "Unknown")
+head(phyloseq::tax_table(family_pseq))
 
 
+view(phyloseq::tax_table(family_pseq))
+paste0("Number of families: ", nrow(phyloseq::otu_table(family_pseq)))
 
-# Diversity analysis ----
-
-# Alpha diversity plots ----
-alpha_plot <- phyloseq::plot_richness(physeq = pseq_rarefy, 
-                                      measures = c("Observed","Chao1","Shannon"))
-alpha_plot + theme(axis.text.x = element_text(angle =110))
-
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "Orchard",
-                        measures = "Observed") +
-  ggplot2::geom_boxplot(aes(fill = sample_data(pseq_rarefy)$intensity), alpha = 0.5) + 
-  theme_bw() + labs(y = "Shannon's Alpha Diversity", fill = "Management Intensity") +
-  theme(strip.text.x = element_blank(),
-        strip.background = element_blank(),
-        panel.grid = element_blank(),
-        axis.text.x = element_text(angle =110, face = "bold", size = 12), 
-        axis.title = element_text(face = "bold", size = 15), axis.title.y = element_text(margin = margin(r = 15))) +
-  scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
+plot_composition(family_pseq, average_by = "Orchard") +
+  labs(x = "Site", y = "Relative Abundance", fill = "Family") 
 
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "Orchard",
-                        measures = "Observed") +
-  ggplot2::geom_boxplot()
+plot_composition(family_pseq, average_by = "intensity") +
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Family")
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "variety_group",
-                        measures = c("Observed","Shannon")) +
-  ggplot2::geom_boxplot()
-
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "rootstock_group",
-                        measures = "Shannon") +
-  ggplot2::geom_boxplot()
-
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "intensity",
-                        measures = "Observed") +
-  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Taxa Richness") +
-  theme(strip.text.x = element_blank(),
-        strip.background = element_blank()) + scale_x_discrete(labels = c("high" = "High", "low" = "Low"))
-
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "fruit_type",
-                        measures = "Observed") +
-  ggplot2::geom_boxplot()
-
-phyloseq::plot_richness(physeq = pseq_rarefy, 
-                        x = "orchard_type",
-                        measures = c("Observed","Simpson","Shannon")) +
-  ggplot2::geom_boxplot()
-
-subset_samples(pseq_rarefy, orchard_type == "Charity") %>%
-  phyloseq::plot_richness(
-    x = "Orchard",
-    measures = c("Observed")) +
-  ggplot2::geom_boxplot()
-
-subset_samples(pseq_rarefy, !orchard_age == "NA") %>%
-    phyloseq::plot_richness(
-                        x = "orchard_age",
-                        measures = c("Shannon")) +
-  ggplot2::geom_boxplot()
-
-subset_samples(pseq_rarefy, !compost == "NA") %>%
-  phyloseq::plot_richness(
-    x = "compost",
-    measures = c("Shannon")) +
-  ggplot2::geom_boxplot()
+plot_composition(family_pseq, average_by = "orchard_type") +
+  labs(x = "Orchard Type", y = "Relative Abundance", fill = "Family")
 
 
-# Produce data frame of all alpha diversity values
-alpha_df <- phyloseq::estimate_richness(physeq = pseq_rarefy)
-head(alpha_df)
-
-sample_data(pseq_rarefy)$richness <- as.numeric(alpha_df$Observed)
-sample_data(pseq_rarefy)$shannon <- as.numeric(alpha_df$Shannon)
-sample_data(pseq_rarefy)
-
-str(sample_data(pseq_rarefy))
+plot_composition(family_pseq, average_by = "fruit_type") +
+  labs(x = "Fruit Type", y = "Relative Abundance", fill = "Family")
 
 
-#Paired wilcoxon test
-#Observed
-sample_data(wisley.samples)$richness <- as.numeric(sample_data(wisley.samples)$richness)
-pairwise.wilcox.test(wisley.alpha$Observed, phyloseq::sample_data(wisley.samples)$orientation)
+### Genus --- 
 
-pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$Orchard)
+genus_pseq <- pseq_noRPT %>%
+  aggregate_taxa(level = "genus") %>%
+  transform("compositional")
 
-head(sample_data(pseq_rarefy))
-pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchard_age)
+head(phyloseq::otu_table(genus_pseq))
+head(phyloseq::tax_table(genus_pseq))
 
-sample_data(pseq_rarefy)$pH <- as.numeric(sample_data(pseq_rarefy)$pH)
-sample_data(pseq_rarefy)$Conductivity <- as.numeric(sample_data(pseq_rarefy)$Conductivity)
-sample_data(pseq_rarefy)$NO3 <- as.numeric(sample_data(pseq_rarefy)$NO3)
-sample_data(pseq_rarefy)$NO2 <- as.numeric(sample_data(pseq_rarefy)$NO2)
-sample_data(pseq_rarefy)$NH4 <- as.numeric(sample_data(pseq_rarefy)$NH4)
-sample_data(pseq_rarefy)$TON <- as.numeric(sample_data(pseq_rarefy)$TON)
-sample_data(pseq_rarefy)$OM <- as.numeric(sample_data(pseq_rarefy)$OM)
+genus_pseq <- tax_glom(genus_pseq, "genus", NArm = TRUE, bad_empty = "Unknown")
+head(phyloseq::tax_table(genus_pseq))
 
-str(sample_data(pseq_rarefy))
+
+view(phyloseq::tax_table(genus_pseq))
+paste0("Number of genera: ", nrow(phyloseq::otu_table(genus_pseq)))
+
+
 
 # Ordinations ----
 dist.mat <- phyloseq::distance(pseq_rarefy, "bray")
@@ -422,41 +460,24 @@ ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray
 ord.cca <- ordinate(pseq_rarefy, "CCA")
 
 #Plot ordination
-nmds.bray <- phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
-                                            color = "fruit_type")
-nmds.bray
+phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
+                                            color = "intensity")
+phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
+                          color = "fruit_type")
+
+phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
+                          color = "orchard_type")
+
+phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
+                          color = "orchard_age")
 
 pseq_rarefy_filtered <- pseq_rarefy %>%
   subset_samples(compost != "NA" & pesticides !="NA")
 
-ord.mds2  <- ordinate(pseq_rarefy_filtered, method = "MDS", distance = "bray")
+ord.nmds2  <- ordinate(pseq_rarefy_filtered, method = "NMDS", distance = "bray")
 
-phyloseq::plot_ordination(pseq_rarefy_filtered, ord.mds2, color = "compost", shape = "pesticides")
+phyloseq::plot_ordination(pseq_rarefy_filtered, ord.nmds2, color = "compost", shape = "pesticides")
 
-
-p.cca <- plot_ordination(pseq_rarefy, ord.cca,
-                         type = "samples", color = "fruit_type")
-
-p.cca + geom_point()
-
-
-biplot_pcoa(pseq_rarefy, color = "Orchard", shape = "instensity")
-
-
-is.na(sample_data(pseq_rarefy))
-str(sample_data(pseq_rarefy))
-
-
-
-
-pseq_rarefy %>%
-  tax_transform("clr") %>%
-  ord_calc(
-    constraints = c("pH", "OM"),
-    scale_cc = FALSE
-  ) %>%
-  ord_plot(color = "intensity", shape = "fruit_type", size = 2) +
-  scale_colour_brewer(palette = "Dark2")
 
 
 
