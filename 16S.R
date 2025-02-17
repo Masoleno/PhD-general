@@ -10,14 +10,14 @@ library(phyloseq)
 library(tidyverse)
 library(ggplot2)
 library(ggpubr)
-library(BiocManager)
- # Use the below code to install BiocManager and phyloseq if needed:
- # if (!require("BiocManager", quietly = TRUE))
- #  install.packages("BiocManager")
- # BiocManager::install("phyloseq")
- # # Use this to install microViz if needed:
- # install.packages(
- #  "microViz",
+# Use the below code to install BiocManager and phyloseq if needed:
+# if (!require("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+# library(BiocManager)
+# BiocManager::install("phyloseq")
+# Use this to install microViz if needed:
+# install.packages(
+  #  "microViz",
  #  repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos")))
 library(microViz)
 library(readr)
@@ -26,11 +26,11 @@ library(vegan)
 
 # Set-up ----
 # Read in the ASV table with number of reads per sample (produced with dada2)
-ASVs <- read_csv("ps_countmat.csv")
+ASVs <- read_csv("ps_countmat_16S.csv")
 
 # Read in the taxonomy table showing the taxonomy of each ASV
 # column types need to be specified as otherwise it throws parsing errors
-taxonomy <- read_csv("ps_taxamat.csv", col_types = list(
+taxonomy <- read_csv("ps_taxamat_16S.csv", col_types = list(
   kingdom = "c",
   phylum = "c",
   class ="c",
@@ -242,6 +242,23 @@ microbiome::summarize_phyloseq(pseq_rarefy)
 microbiome::readcount(pseq_rarefy)
 pseq_noRPT
 
+
+#Abundance sums of the 1st six ASVs
+head(phyloseq::taxa_sums(pseq_noRPT))
+
+#View number of ASVs in our data
+length(phyloseq::taxa_sums(pseq_noRPT))
+
+#Remove ASVs with no abundance
+pseq_noRPT <- phyloseq::prune_taxa(
+  phyloseq::taxa_sums(pseq_noRPT) > 0, pseq_noRPT
+)
+
+#Summarise subsetted phyloseq
+microbiome::summarize_phyloseq(pseq_noRPT)
+microbiome::readcount(pseq_noRPT)
+length(phyloseq::taxa_sums(pseq_noRPT))
+length(phyloseq::taxa_sums(pseq_rarefy))
 # ASV counts
 # Add relative abundance ASV count
 num_asvs_vec["rarefied"] <- nrow(phyloseq::otu_table(pseq_rarefy))
@@ -359,14 +376,17 @@ pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchar
 
 # Rel. abundance plots ----
 ### Phylum ----
-phylum_pseq <- pseq_noRPT %>%
+phylum_pseq <- pseq_rarefy %>%
   aggregate_taxa(level = "phylum") %>%
   transform("compositional")
+
+taxa_names(pseq_noRPT)
+ncol(tax_table(pseq_noRPT))
 
 head(phyloseq::otu_table(phylum_pseq))
 head(phyloseq::tax_table(phylum_pseq))
 
-phylum_pseq <- tax_glom(phylum_pseq, "phylum", NArm = TRUE, bad_empty = "Unknown")
+phylum_pseq <- tax_glom(phylum_pseq, "phylum", bad_empty = "Unknown")
 head(phyloseq::tax_table(phylum_pseq))
 
 
@@ -385,6 +405,7 @@ bar.rel.abund <- plot_composition(phylum_pseq,
   labs(x = "Site", y = "Relative Abundance", fill = "Phyla") 
 
 bar.rel.abund
+
 
 bar.rel.abund2 <- plot_composition(phylum_pseq,
                                    average_by = "intensity") +
@@ -406,9 +427,15 @@ bar.rel.abund4 <- plot_composition(phylum_pseq,
 bar.rel.abund4
 
 ### Family ----
-family_pseq <- pseq_noRPT %>%
-  aggregate_taxa(level = "family") %>%
-  transform("compositional")
+pseq_relabund <-transform(pseq_rarefy, "compositional")
+#Summarise and check sample counts which should each amount to 1
+microbiome::summarize_phyloseq(pseq_relabund)
+microbiome::readcount(pseq_relabund)
+head(phyloseq::tax_table(pseq_relabund))
+  
+family_pseq <- microbiome::aggregate_taxa(pseq_relabund, "family",
+                                          verbose = FALSE)
+family_pseq  <- subset_taxa(family_pseq, family != "Unknown")
 
 head(phyloseq::otu_table(family_pseq))
 head(phyloseq::tax_table(family_pseq))
@@ -419,6 +446,13 @@ head(phyloseq::tax_table(family_pseq))
 
 view(phyloseq::tax_table(family_pseq))
 paste0("Number of families: ", nrow(phyloseq::otu_table(family_pseq)))
+
+fam_heatmap <- microbiome::plot_composition(family_pseq, 
+                                            plot.type = "heatmap") +
+  xlab("Family") + ylab("Sample") +
+  ggtitle("Family relative abundance heatmap")
+
+fam_heatmap
 
 plot_composition(family_pseq, average_by = "Orchard") +
   labs(x = "Site", y = "Relative Abundance", fill = "Family") 
@@ -435,7 +469,7 @@ plot_composition(family_pseq, average_by = "fruit_type") +
   labs(x = "Fruit Type", y = "Relative Abundance", fill = "Family")
 
 
-### Genus --- 
+### Genus ----
 
 genus_pseq <- pseq_noRPT %>%
   aggregate_taxa(level = "genus") %>%
@@ -444,6 +478,7 @@ genus_pseq <- pseq_noRPT %>%
 head(phyloseq::otu_table(genus_pseq))
 head(phyloseq::tax_table(genus_pseq))
 
+
 genus_pseq <- tax_glom(genus_pseq, "genus", NArm = TRUE, bad_empty = "Unknown")
 head(phyloseq::tax_table(genus_pseq))
 
@@ -451,6 +486,36 @@ head(phyloseq::tax_table(genus_pseq))
 view(phyloseq::tax_table(genus_pseq))
 paste0("Number of genera: ", nrow(phyloseq::otu_table(genus_pseq)))
 
+### Species ----
+rank_names(pseq_noRPT)
+species_pseq <- pseq_noRPT %>%
+  aggregate_taxa(level = "species") %>%
+  transform("compositional")
+
+head(phyloseq::otu_table(species_pseq))
+head(phyloseq::tax_table(species_pseq))
+
+taxa_names(species_pseq) <- str_remove(
+  taxa_names(species_pseq) , "uncultured_")
+
+taxa_names(species_pseq)
+
+phyloseq::otu_table(species_pseq)
+
+
+species_pseq2 <- tax_glom(species_pseq, "species", NArm = FALSE,
+                          bad_empty = c("unknown", "bacterium", "archaeon"))
+head(phyloseq::tax_table(species_pseq2))
+
+
+view(phyloseq::tax_table(species_pseq))
+paste0("Number of species: ", nrow(phyloseq::otu_table(species_pseq2)))
+
+plot_composition(species_pseq2, average_by = "intensity") +
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Species")
+
+plot_composition(species_pseq, average_by = "fruit_type") +
+  labs(x = "Fruit Type", y = "Relative Abundance", fill = "Species")
 
 
 # Ordinations ----
@@ -458,18 +523,74 @@ dist.mat <- phyloseq::distance(pseq_rarefy, "bray")
 ord.nmds.bray <- phyloseq::ordinate(pseq_rarefy, method = "NMDS", distance = "bray")
 ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray")
 ord.cca <- ordinate(pseq_rarefy, "CCA")
+ord.pcoa <- ordinate(pseq_noRPT, method = "PCoA", distance = "bray")
 
 #Plot ordination
-phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
-                                            color = "intensity")
-phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
-                          color = "fruit_type")
+pcoa_plot = plot_ordination(pseq_rarefy, ord.pcoa, color="intensity",
+                            shape = "orchard_type") +
+  geom_point(size = 3)  
+pcoa_plot
 
-phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
-                          color = "orchard_type")
+pcoa_plot2 = plot_ordination(pseq_rarefy, ord.pcoa, 
+                             color="intensity") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+pcoa_plot2
 
-phyloseq::plot_ordination(pseq_rarefy, ord.nmds.bray,
-                          color = "orchard_age")
+pcoa_plot3 = plot_ordination(pseq_rarefy, ord.pcoa, 
+                             color="orchard_type") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+pcoa_plot3
+
+pcoa_plot4 = plot_ordination(pseq_rarefy, ord.pcoa, 
+                             color="fruit_type") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+pcoa_plot4
+
+plot_ordination(pseq_rarefy, ord.pcoa, 
+                color="variety_group") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+
+plot_ordination(pseq_rarefy, ord.pcoa, 
+                color="Orchard") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+
+
+pseq_rarefy_no_charity <- subset_samples(pseq_rarefy, !orchard_type == "Charity")
+str(sample_data(pseq_rarefy_no_charity))
+pseq_rarefy_no_charity
+ord.pcoa.commercial <- ordinate(pseq_rarefy_no_charity, 
+                                method = "PCoA", distance = "bray")
+
+pcoa_plot5 = plot_ordination(pseq_rarefy_no_charity, ord.pcoa.commercial, 
+                             color="fruit_type") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+pcoa_plot5
+
+pseq_rarefy_no_cider <- subset_samples(pseq_rarefy, 
+                                       !fruit_type == "Cider")
+
+pseq_rarefy_no_dessert <- subset_samples(pseq_rarefy, 
+                                       !fruit_type == "Dessert")
+
+pseq_rarefy_no_dessert
+view(sample_data(pseq_rarefy_no_dessert))
+
+ord.pcoa.cider <- ordinate(pseq_rarefy_no_dessert, 
+                                method = "PCoA", distance = "bray")
+
+plot_ordination(pseq_rarefy_no_dessert, ord.pcoa.cider, 
+                color="Orchard") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+
+pcoa_plot6 = plot_ordination(pseq_rarefy_no_cider, ord.pcoa.dessert, 
+                             color="intensity") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+pcoa_plot6
+
+plot_ordination(pseq_rarefy_no_cider, ord.pcoa.dessert, 
+                color="Orchard") +
+  geom_point(size = 3) + ggplot2::stat_ellipse()
+
 
 pseq_rarefy_filtered <- pseq_rarefy %>%
   subset_samples(compost != "NA" & pesticides !="NA")
@@ -477,9 +598,6 @@ pseq_rarefy_filtered <- pseq_rarefy %>%
 ord.nmds2  <- ordinate(pseq_rarefy_filtered, method = "NMDS", distance = "bray")
 
 phyloseq::plot_ordination(pseq_rarefy_filtered, ord.nmds2, color = "compost", shape = "pesticides")
-
-
-
 
 
 
