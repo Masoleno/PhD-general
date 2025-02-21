@@ -42,6 +42,7 @@ taxonomy <- read_csv("ps_taxamat_16S.csv", col_types = list(
 # check the data (the view() function doesn't show all columns)
 head(ASVs)
 head(taxonomy)
+tail(taxonomy)
 
 taxonomy$...1 <- NULL
 head(taxonomy)
@@ -63,6 +64,7 @@ OTU = otu_table(ASV_mat, taxa_are_rows = TRUE)
 TAX = tax_table(taxa_mat)
 OTU
 TAX
+tail(TAX, 20)
 physeq <- phyloseq(OTU, TAX)
 physeq
 
@@ -273,22 +275,33 @@ load("phyloseq-bacteria-noRPTs.RData")
 load("num_asvs_vec.v2.RData")
 num_asvs_vec
 
+taxa_names(pseq_bac)
 taxa_names(pseq_rarefy)
 phyloseq::tax_table(pseq_rarefy)[1:5, 1:5]
 colnames(tax_table(pseq_rarefy))
 phyloseq::tax_table(pseq_rarefy)[1:30, 1:5]
+otu_table(pseq_bac)
 
+colnames(tax_table(pseq_bac))
+pseq_bac
+tail(tax_table(pseq_bac), 20)
+head(otu_table(pseq_rarefy), 20)
+taxa_names(pseq_bac)
 
+# filter low-occurring taxa (if wanted),
+# remove taxa not seen more than 3 times in at least 20% of the samples;
+pseq_bac_ft <- filter_taxa(pseq_bac, function(x) sum(x > 3) > (0.2*length(x)), TRUE)
+summarize_phyloseq(pseq_bac_ft)
 # Diversity analysis ----
 ## Alpha diversity plots ----
-alpha_plot <- phyloseq::plot_richness(physeq = pseq_rarefy, 
+alpha_plot <- phyloseq::plot_richness(physeq = pseq_bac_ft, 
                                       measures = c("Observed","Chao1","Shannon"))
 alpha_plot 
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "Orchard",
                         measures = "Observed") +
-  ggplot2::geom_boxplot(aes(fill = sample_data(pseq_rarefy)$intensity), alpha = 0.5) + 
+  ggplot2::geom_boxplot(aes(fill = sample_data(pseq_bac)$intensity), alpha = 0.5) + 
   theme_bw() + labs(y = "Shannon's Alpha Diversity", fill = "Management Intensity") +
   theme(strip.text.x = element_blank(),
         strip.background = element_blank(),
@@ -298,51 +311,51 @@ phyloseq::plot_richness(physeq = pseq_rarefy,
   scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "Orchard",
                         measures = "Shannon") +
   ggplot2::geom_boxplot()
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "variety_group",
                         measures = "Shannon") +
   ggplot2::geom_boxplot()
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "rootstock_group",
                         measures = "Shannon") +
   ggplot2::geom_boxplot()
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "intensity",
                         measures = "Shannon") +
   ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Shannon's Diversity") +
   theme(strip.text.x = element_blank(),
         strip.background = element_blank()) + scale_x_discrete(labels = c("high" = "High", "low" = "Low"))
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "fruit_type",
                         measures = "Shannon") +
   ggplot2::geom_boxplot()
 
-phyloseq::plot_richness(physeq = pseq_rarefy, 
+phyloseq::plot_richness(physeq = pseq_bac_ft, 
                         x = "orchard_type",
                         measures = "Shannon") +
   ggplot2::geom_boxplot()
 
-subset_samples(pseq_rarefy, orchard_type == "Charity") %>%
+subset_samples(pseq_bac_ft, orchard_type == "Charity") %>%
   phyloseq::plot_richness(
     x = "Orchard",
     measures = c("Shannon")) +
   ggplot2::geom_boxplot()
 
-subset_samples(pseq_rarefy, !orchard_age == "NA") %>%
+subset_samples(pseq_bac_ft, !orchard_age == "NA") %>%
     phyloseq::plot_richness(
                         x = "orchard_age",
                         measures = c("Shannon")) +
   ggplot2::geom_boxplot()
 
-subset_samples(pseq_rarefy, !compost == "NA") %>%
+subset_samples(pseq_bac_ft, !compost == "NA") %>%
   phyloseq::plot_richness(
     x = "compost",
     measures = c("Shannon")) +
@@ -351,7 +364,7 @@ subset_samples(pseq_rarefy, !compost == "NA") %>%
 
 ## Alpha stats ----
 # Produce data frame of all alpha diversity values
-alpha_df <- phyloseq::estimate_richness(physeq = pseq_rarefy)
+alpha_df <- phyloseq::estimate_richness(physeq = pseq_bac_ft)
 head(alpha_df)
 row.names(alpha_df) <- smp_data2$Sample.ID
 row.names(alpha_df)
@@ -371,11 +384,11 @@ pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchar
 
 # Rel. abundance plots ----
 ### Phylum ----
-phylum_pseq <- pseq_rarefy %>%
+phylum_pseq <- pseq_bac %>%
   aggregate_taxa(level = "phylum") %>%
   transform("compositional")
 
-taxa_names(pseq_noRPT)
+taxa_names(phylum_pseq)
 ncol(tax_table(pseq_noRPT))
 
 head(phyloseq::otu_table(phylum_pseq))
@@ -383,7 +396,6 @@ head(phyloseq::tax_table(phylum_pseq))
 
 phylum_pseq <- tax_glom(phylum_pseq, "phylum", bad_empty = "Unknown")
 head(phyloseq::tax_table(phylum_pseq))
-
 
 view(phyloseq::tax_table(phylum_pseq))
 paste0("Number of phyla: ", nrow(phyloseq::otu_table(phylum_pseq)))
@@ -421,52 +433,56 @@ bar.rel.abund4 <- plot_composition(phylum_pseq,
 
 bar.rel.abund4
 
+
 ### Family ----
-pseq_relabund <-transform(pseq_rarefy, "compositional")
+#Transform abundance table to a relative abundance (compositional) table
+pseq_relabund <- microbiome::transform(pseq_bac, "compositional")
+
 #Summarise and check sample counts which should each amount to 1
 microbiome::summarize_phyloseq(pseq_relabund)
 microbiome::readcount(pseq_relabund)
-head(phyloseq::tax_table(pseq_relabund))
-  
-family_pseq <- microbiome::aggregate_taxa(pseq_relabund, "family",
-                                          verbose = FALSE)
-family_pseq  <- subset_taxa(family_pseq, family != "Unknown")
 
+#Family phyloseq
+family_pseq <- microbiome::aggregate_taxa(pseq_relabund, "family", verbose = FALSE)
+#Head of family relative abundance table
 head(phyloseq::otu_table(family_pseq))
-head(phyloseq::tax_table(family_pseq))
-
-family_pseq <- tax_glom(family_pseq, "family", NArm = TRUE, bad_empty = "Unknown")
-head(phyloseq::tax_table(family_pseq))
-
-
-view(phyloseq::tax_table(family_pseq))
+tail(phyloseq::otu_table(family_pseq))
+#Number of families
 paste0("Number of families: ", nrow(phyloseq::otu_table(family_pseq)))
+#Summarise
+microbiome::summarize_phyloseq(family_pseq)
+microbiome::readcount(family_pseq)
 
-fam_heatmap <- microbiome::plot_composition(family_pseq, 
-                                            plot.type = "heatmap") +
+pseq_rarefy <- subset_taxa(pseq_rarefy, family !="Unknown")
+
+fam <- tax_glom(pseq_bac_ft, taxrank = "family")
+fam <- subset_taxa(fam, family != "Unknown")
+plot_heatmap(fam, sample.label = "Orchard")
+
+#Family heatmap
+family_heatmap <- microbiome::plot_composition(family_pseq, plot.type = "heatmap") +
   xlab("Family") + ylab("Sample") +
-  ggtitle("Family relative abundance heatmap")
+  ggtitle("Family relative abundance heatmap") +
+  #Flip the x and y axes
+  coord_flip()
 
-fam_heatmap
+family_heatmap
 
-plot_composition(family_pseq, average_by = "Orchard") +
-  labs(x = "Site", y = "Relative Abundance", fill = "Family") 
+# Removing uknown families creates issues
+family_pseq2 <- subset_taxa(family_pseq, family != "Unknown")
+tail(phyloseq::otu_table(family_pseq2))
 
+family_heatmap2 <- microbiome::plot_composition(family_pseq2, plot.type = "heatmap") +
+  xlab("Family") + ylab("Sample") +
+  ggtitle("Family relative abundance heatmap") +
+  #Flip the x and y axes
+  coord_flip()
 
-plot_composition(family_pseq, average_by = "intensity") +
-  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Family")
-
-plot_composition(family_pseq, average_by = "orchard_type") +
-  labs(x = "Orchard Type", y = "Relative Abundance", fill = "Family")
-
-
-plot_composition(family_pseq, average_by = "fruit_type") +
-  labs(x = "Fruit Type", y = "Relative Abundance", fill = "Family")
-
+family_heatmap2
 
 ### Genus ----
 
-genus_pseq <- pseq_noRPT %>%
+genus_pseq <- pseq_bac %>%
   aggregate_taxa(level = "genus") %>%
   transform("compositional")
 
@@ -481,9 +497,34 @@ head(phyloseq::tax_table(genus_pseq))
 view(phyloseq::tax_table(genus_pseq))
 paste0("Number of genera: ", nrow(phyloseq::otu_table(genus_pseq)))
 
+plot_composition(genus_pseq, average_by = "Orchard") +
+  labs(x = "Site", y = "Relative Abundance", fill = "Genus") 
+
+
+plot_composition(genus_pseq, average_by = "intensity") +
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Genus")
+## Genus heatmap
+genus_pseq2 <- microbiome::aggregate_taxa(pseq_relabund, "genus", verbose = FALSE)
+#Head of family relative abundance table
+head(phyloseq::otu_table(genus_pseq2))
+tail(phyloseq::otu_table(genus_pseq2))
+#Number of families
+paste0("Number of genera: ", nrow(phyloseq::otu_table(genus_pseq2)))
+#Summarise
+microbiome::summarize_phyloseq(genus_pseq2)
+microbiome::readcount(genus_pseq2)
+
+genus_heatmap <- microbiome::plot_composition(genus_pseq2, plot.type = "heatmap") +
+  xlab("Genus") + ylab("Sample") +
+  ggtitle("Genus relative abundance heatmap") +
+  #Flip the x and y axes
+  coord_flip()
+
+genus_heatmap
+
 ### Species ----
 rank_names(pseq_noRPT)
-species_pseq <- pseq_noRPT %>%
+species_pseq <- pseq_bac %>%
   aggregate_taxa(level = "species") %>%
   transform("compositional")
 
@@ -514,14 +555,14 @@ plot_composition(species_pseq, average_by = "fruit_type") +
 
 
 # Ordinations ----
-dist.mat <- phyloseq::distance(pseq_rarefy, "bray")
+dist.mat <- phyloseq::distance(pseq_bac, "bray")
 ord.nmds.bray <- phyloseq::ordinate(pseq_rarefy, method = "NMDS", distance = "bray")
 ord.mds.bray <- phyloseq::ordinate(pseq_rarefy, method = "MDS", distance = "bray")
 ord.cca <- ordinate(pseq_rarefy, "CCA")
-ord.pcoa <- ordinate(pseq_noRPT, method = "PCoA", distance = "bray")
+ord.pcoa <- ordinate(pseq_bac, method = "PCoA", distance = "bray")
 
 #Plot ordination
-pcoa_plot = plot_ordination(pseq_rarefy, ord.pcoa, color="intensity",
+pcoa_plot = plot_ordination(pseq_bac, ord.pcoa, color="intensity",
                             shape = "orchard_type") +
   geom_point(size = 3)  
 pcoa_plot
