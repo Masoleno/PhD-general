@@ -110,33 +110,56 @@ ps_bac <- merge_phyloseq(physeq, smp_data4)
 microbiome::summarize_phyloseq(ps_bac)
 ps_bac
 
-# Make a new phyloseq object without repeats and controls
+# Make a new phyloseq object without repeats
+sample_names(ps_bac)
 ps_bac %>%
   sample_data() %>%
   as.data.frame() %>%
   head()
-to_remove <- sample_names(ps_bac)[159:191]
-pseq_noRPT <- prune_samples(!sample_names(ps_bac) %in% to_remove, ps_bac)
+to_remove <- sample_names(ps_bac)[159:173]
+pseq_noRPT <- prune_samples(!sample_names(ps_bac) %in% 
+                              to_remove, ps_bac)
 sample_names(pseq_noRPT)
 
-rank_names(pseq_noRPT)
-head(tax_table(pseq_noRPT))
+# Remove taxa that occur in the negative controls from the samples
+neg_controls <- sample_names(pseq_noRPT)[159:174]
+neg_controls
+pseq_controls <- subset_samples(pseq_noRPT, Sample.ID %in%
+                   neg_controls)
+pseq_controls
+pseq_controls <- prune_taxa(taxa_sums(pseq_controls) > 0,
+                            pseq_controls)
+pseq_controls
+
+badASV <- taxa_names(pseq_controls)
+allASV <- taxa_names(pseq_noRPT)
+allASV <- allASV[!(allASV %in% badASV)]
+pseq_bac <-  prune_taxa(allASV, pseq_noRPT)
+pseq_bac
+pseq_noRPT
+
+# Remove the controls from the smple data so that it's not interferring with analyses
+sample_names(pseq_bac)
+to_remove <- sample_names(pseq_bac)[159:176]
+pseq_bac <- prune_samples(!sample_names(pseq_bac) %in% 
+                              to_remove, pseq_bac)
+sample_names(pseq_bac)
 
 # Extract sample_depths (number of reads per sample)
-sample_depths <- microbiome::readcount(pseq_noRPT)
+sample_depths <- microbiome::readcount(pseq_bac)
 sample_depths
 
 # Histogram of sample depths
 hist(sample_depths, main = "Histogram of read depths")
 
 # Extract row number from the otu_table to get the total number of ASVs in the  data
-num_asvs_vec <- c(nrow(phyloseq::otu_table(pseq_noRPT)))
+num_asvs_vec <- c(nrow(phyloseq::otu_table(pseq_bac)))
 names(num_asvs_vec)[1] <- "abundance"
 num_asvs_vec
 save(num_asvs_vec, file = "num-asvs-vec.RData")
 
 # Minimum read depth
-abundance_metadf <- phyloseq::sample_data(pseq_noRPT)
+abundance_metadf <- phyloseq::sample_data(pseq_bac)
 abundance_metadf
 
 # Check if the vector of sample_depths has the same order as our metadata rows
@@ -146,6 +169,7 @@ identical(names(sample_depths),row.names(abundance_metadf))
 
 #Add sample depths to metadata data frame
 abundance_metadf[,"depth"] <- sample_depths
+
 #View top 6 rows of edited metadata dataframe
 head(abundance_metadf)
 class(abundance_metadf)
@@ -174,8 +198,8 @@ boxplot4
 
 # Rarefaction curve
 # Extract ASV table as transposed data frame
-asv_abund_df <- as.data.frame(t(phyloseq::otu_table(pseq_noRPT)))
-min(microbiome::readcount(pseq_noRPT))
+asv_abund_df <- as.data.frame(t(phyloseq::otu_table(pseq_bac)))
+min(microbiome::readcount(pseq_bac))
 
 # plot the rarefaction curve
 vegan::rarecurve(
@@ -184,43 +208,10 @@ vegan::rarecurve(
   ylab = "ASVs"
 )
 
-# Subset and keep samples with more than 6k reads
-ps_min6K <- phyloseq::subset_samples(pseq_noRPT, sample_depths > 6000)
-
-#Abundance sums of the 1st six ASVs
-head(phyloseq::taxa_sums(ps_min6K))
-length(phyloseq::taxa_sums(ps_min6K))
-
-# Remove ASVs with no abundance
-ps_min6K <- phyloseq::prune_taxa(
-  phyloseq::taxa_sums(ps_min6K) > 0, ps_min6K
-)
-
-
-# Summarise subsetted phyloseq
-microbiome::summarize_phyloseq(ps_min6K)
-microbiome::readcount(ps_min6K)
-length(phyloseq::taxa_sums(ps_min6K))
-ps_min6K
-
-
-# Plot rarefaction curves displaying two different minimum read depths (6k and min read depth of the whole physeq) as a horizontal line
-vegan::rarecurve(
-  x = asv_abund_df, step = 50,
-  xlab = "Read depth", ylab = "ASVs", label = F,
-  sample = min(microbiome::readcount(ps_min6K))
-)
-
-vegan::rarecurve(
-  x = asv_abund_df, step = 50,
-  xlab = "Read depth", ylab = "ASVs", label = F,
-  sample = min(microbiome::readcount(pseq_noRPT))
-)
-
 
 # Rarefaction slopes
 rarefaction_slopes <- vegan::rareslope(
-  x = asv_abund_df, sample = min(microbiome::readcount(pseq_noRPT)))
+  x = asv_abund_df, sample = min(microbiome::readcount(pseq_bac)))
   
 # View slopes from lowest to highest value
 sort(rarefaction_slopes)
@@ -233,40 +224,44 @@ hist(rarefaction_slopes)
 
 # Rarefy to minimum depth
 pseq_rarefy <- phyloseq::rarefy_even_depth(
-  pseq_noRPT, sample.size = min(microbiome::readcount(pseq_noRPT)),
+  pseq_bac, sample.size = min(microbiome::readcount(pseq_bac)),
   rngseed = 1000
 )
 
-# Summarise and check sample counts which should each amount to 9332 (min depth)
+# Summarise and check sample counts which should each amount to 8487 (min depth)
 microbiome::summarize_phyloseq(pseq_rarefy)
 microbiome::readcount(pseq_rarefy)
-pseq_noRPT
-
+pseq_bac
+pseq_rarefy
 
 #Abundance sums of the 1st six ASVs
-head(phyloseq::taxa_sums(pseq_noRPT))
+head(phyloseq::taxa_sums(pseq_bac))
 
 #View number of ASVs in our data
-length(phyloseq::taxa_sums(pseq_noRPT))
+length(phyloseq::taxa_sums(pseq_bac))
 
 #Remove ASVs with no abundance
-pseq_noRPT <- phyloseq::prune_taxa(
-  phyloseq::taxa_sums(pseq_noRPT) > 0, pseq_noRPT
+pseq_bac <- phyloseq::prune_taxa(
+  phyloseq::taxa_sums(pseq_bac) > 0, pseq_bac
 )
 
 #Summarise subsetted phyloseq
-microbiome::summarize_phyloseq(pseq_noRPT)
-microbiome::readcount(pseq_noRPT)
-length(phyloseq::taxa_sums(pseq_noRPT))
+microbiome::summarize_phyloseq(pseq_bac)
+microbiome::readcount(pseq_bac)
+length(phyloseq::taxa_sums(pseq_bac))
 length(phyloseq::taxa_sums(pseq_rarefy))
 # ASV counts
 # Add relative abundance ASV count
 num_asvs_vec["rarefied"] <- nrow(phyloseq::otu_table(pseq_rarefy))
 num_asvs_vec
 
-# Phyloseq save
+
+num_asvs_vec["no. removed taxa"] <- num_asvs_vec[1] - num_asvs_vec[2]
+num_asvs_vec
+
+## Phyloseq save ----
 save(pseq_rarefy, file ="phyloseq-bacteria-rarefied.RData")
-save(pseq_noRPT, file = "phyloseq-bacteria-noRPTs.RData")
+save(pseq_bac, file = "phyloseq-bacteria-noRPTs.RData")
 # ASV count save
 save(num_asvs_vec, file="num_asvs_vec.v2.RData")
 
