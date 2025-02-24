@@ -25,92 +25,71 @@ library(microbiome)
 library(vegan)
 
 # Set-up ----
-# Read in the ASV table with number of reads per sample (produced with dada2)
-ASVs <- read_csv("ps_countmat_16S.csv")
+## Make a function to create phyloseq object from csv files ----
+make_pseq <- function(asvfile, taxfile, metafile){
+  ASVs <- read_csv(asvfile)
+  taxonomy <- read_csv(taxfile, col_types = cols(.default = "c"))
+  taxonomy$...1 <- gsub("ASV_", "", taxonomy$...1)
+  
+  taxonomy <- arrange(taxonomy, as.numeric(...1))
+  taxonomy$...1 <- NULL
+  
+  # Turn into matrices
+  ASV_mat <- as.matrix(ASVs)
+  taxa_mat <-as.matrix(taxonomy)
+  
+  
+  # Make a phyloseq object with the ASV matrix and the taxonomy matrix
+  OTU = otu_table(ASV_mat, taxa_are_rows = TRUE)
+  TAX = tax_table(taxa_mat)
+  
+  physeq <- phyloseq(OTU, TAX)
+  
+  # Read in metadata file
+  smp_data <- read.csv(metafile, na.strings = c(""))
+  
+  # Remove some  extra text in the Sample.ID column so that the sample id's match those in the ASV table
+  smp_data$Sample.ID <- gsub("1-.*A00", "", smp_data$Sample.ID)
+  smp_data$Sample.ID <- gsub("1-.*A0", "", smp_data$Sample.ID)
+  
+  # Arrange in ascending order by sample
+  ## First convert to numeric
+  smp_data$Sample.ID <- as.numeric(smp_data$Sample.ID)
+  smp_data <- arrange(smp_data, Sample.ID)
+  
+  ## Convert back to character so that they can be matched with the repeats 
+  smp_data$Sample.ID <- as.character(smp_data$Sample.ID)
+  
+  # Filter out only those samples which we have sequencing data for
+  ASV_smps <- colnames(ASVs)
+  
+  smp_data2 <- smp_data %>%
+    filter(Sample.ID %in% ASV_smps)
+  head(smp_data2)
+  
+  # Add empty rows for the repeats and controls to match with the phyloseq sample names
+  sample_names(physeq)
+  rpts <- sample_names(physeq)[159:191]
+  rpts
+  smp_data3 <- smp_data2 %>%
+    add_row(Sample.ID = c(rpts))
+  
+  # Create phyloseq type sample data out of the metadata
+  smp_data4 <- sample_data(data.frame(smp_data3, row.names = sample_names(physeq), stringsAsFactors = FALSE))
+  
+  # Merge into a complete phyloseq object (no tree yet)
+  physeq2 <- merge_phyloseq(physeq, smp_data4)
+  
+  
+}
 
-# Read in the taxonomy table showing the taxonomy of each ASV
-# column types need to be specified as otherwise it throws parsing errors
-taxonomy <- read_csv("ps_taxamat_16S.csv", col_types = list(
-  kingdom = "c",
-  phylum = "c",
-  class ="c",
-  order = "c",
-  family = "c",
-  genus = "c",
-  species = "c"))
-
-# check the data (the view() function doesn't show all columns)
-head(ASVs)
-head(taxonomy)
-tail(taxonomy)
-
-taxonomy$...1 <- NULL
-head(taxonomy)
-tail(taxonomy)
-head(ASVs)
-tail(ASVs)
-
-# Turn into matrices
-ASV_mat <- as.matrix(ASVs)
-taxa_mat <-as.matrix(taxonomy)
-
-head(ASV_mat)
-class(ASV_mat)
-head(taxa_mat)
-class(taxa_mat)
-
-# Make a phyloseq object with the ASV matrix and the taxonomy matrix
-OTU = otu_table(ASV_mat, taxa_are_rows = TRUE)
-TAX = tax_table(taxa_mat)
-OTU
-TAX
-tail(TAX, 20)
-physeq <- phyloseq(OTU, TAX)
-physeq
-
-# Read in metadata data (produced at the end of the data-prep.R script)
-smp_data <- read.csv("combined-tidy-data.csv", na.strings = c(""))
-
-
-# Remove some  extra text in the Sample.ID column so that the sample id's match those in the ASV table
-smp_data$Sample.ID <- gsub("1-.*A00", "", smp_data$Sample.ID)
-smp_data$Sample.ID <- gsub("1-.*A0", "", smp_data$Sample.ID)
-str(smp_data)
-
-# Arrange in ascending order by sample
-## First convert to numeric
-smp_data$Sample.ID <- as.numeric(smp_data$Sample.ID)
-str(smp_data)
-smp_data <- arrange(smp_data, Sample.ID)
-head(smp_data)
-
-## Convert back to character so that they can be matched with the repeats 
-smp_data$Sample.ID <- as.character(smp_data$Sample.ID)
-str(smp_data)
-
-# Filter out only those samples which we have sequencing data for
-ASV_smps <- colnames(ASVs)
-ASV_smps
-smp_data2 <- smp_data %>%
-  filter(Sample.ID %in% ASV_smps)
-head(smp_data2)
-
-# Add empty rows for the repeats and controls to match with the phyloseq sample names
-sample_names(physeq)
-rpts <- sample_names(physeq)[159:191]
-rpts
-smp_data3 <- smp_data2 %>%
-  add_row(Sample.ID = c(rpts))
-
-# Create phyloseq type sample data out of the metadata
-smp_data4 <- sample_data(data.frame(smp_data3, row.names = sample_names(physeq), stringsAsFactors = FALSE))
-
-# Merge into a complete phyloseq object (no tree yet)
-ps_bac <- merge_phyloseq(physeq, smp_data4)
+## Use function ----
+ps_bac <- make_pseq("ps_countmat_16S.csv", "ps_taxamat_silva.csv", "combined-tidy-data.csv")
 
 # Check the summary of the phyloseq object
 microbiome::summarize_phyloseq(ps_bac)
 ps_bac
+View(tax_table(ps_bac))
 
 # Make a new phyloseq object without repeats
 sample_names(ps_bac)
@@ -140,12 +119,13 @@ pseq_bac <-  prune_taxa(allASV, pseq_noRPT)
 pseq_bac
 pseq_noRPT
 
-# Remove the controls from the smple data so that it's not interferring with analyses
+# Remove the controls from the sample data so that it's not interfering with analyses
 sample_names(pseq_bac)
 to_remove <- sample_names(pseq_bac)[159:176]
 pseq_bac <- prune_samples(!sample_names(pseq_bac) %in% 
                               to_remove, pseq_bac)
 sample_names(pseq_bac)
+View(tax_table(pseq_bac))
 
 # Extract sample_depths (number of reads per sample)
 sample_depths <- microbiome::readcount(pseq_bac)
@@ -383,18 +363,21 @@ pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$fruit_
 pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchard_type)
 
 # Rel. abundance plots ----
+# See taxa at differennt ranks
+get_taxa_unique(pseq_bac, taxonomic.rank = rank_names(pseq_bac)[3])
+
 ### Phylum ----
 phylum_pseq <- pseq_bac %>%
   aggregate_taxa(level = "phylum") %>%
   transform("compositional")
 
 taxa_names(phylum_pseq)
-ncol(tax_table(pseq_noRPT))
-
+tail(taxa_names(pseq_bac))
+head(taxa_names(pseq_bac))
 head(phyloseq::otu_table(phylum_pseq))
 head(phyloseq::tax_table(phylum_pseq))
 
-phylum_pseq <- tax_glom(phylum_pseq, "phylum", bad_empty = "Unknown")
+phylum_pseq <- tax_glom(phylum_pseq, "phylum", NArm = TRUE, bad_empty = "Unknown")
 head(phyloseq::tax_table(phylum_pseq))
 
 view(phyloseq::tax_table(phylum_pseq))
@@ -405,6 +388,7 @@ microbiome::readcount(phylum_pseq)
 
 
 head(phyloseq::tax_table(phylum_pseq))
+
 
 
 bar.rel.abund <- plot_composition(phylum_pseq,
@@ -468,18 +452,6 @@ family_heatmap <- microbiome::plot_composition(family_pseq, plot.type = "heatmap
 
 family_heatmap
 
-# Removing uknown families creates issues
-family_pseq2 <- subset_taxa(family_pseq, family != "Unknown")
-tail(phyloseq::otu_table(family_pseq2))
-
-family_heatmap2 <- microbiome::plot_composition(family_pseq2, plot.type = "heatmap") +
-  xlab("Family") + ylab("Sample") +
-  ggtitle("Family relative abundance heatmap") +
-  #Flip the x and y axes
-  coord_flip()
-
-family_heatmap2
-
 ### Genus ----
 
 genus_pseq <- pseq_bac %>%
@@ -503,27 +475,9 @@ plot_composition(genus_pseq, average_by = "Orchard") +
 
 plot_composition(genus_pseq, average_by = "intensity") +
   labs(x = "Management Intensity", y = "Relative Abundance", fill = "Genus")
-## Genus heatmap
-genus_pseq2 <- microbiome::aggregate_taxa(pseq_relabund, "genus", verbose = FALSE)
-#Head of family relative abundance table
-head(phyloseq::otu_table(genus_pseq2))
-tail(phyloseq::otu_table(genus_pseq2))
-#Number of families
-paste0("Number of genera: ", nrow(phyloseq::otu_table(genus_pseq2)))
-#Summarise
-microbiome::summarize_phyloseq(genus_pseq2)
-microbiome::readcount(genus_pseq2)
-
-genus_heatmap <- microbiome::plot_composition(genus_pseq2, plot.type = "heatmap") +
-  xlab("Genus") + ylab("Sample") +
-  ggtitle("Genus relative abundance heatmap") +
-  #Flip the x and y axes
-  coord_flip()
-
-genus_heatmap
 
 ### Species ----
-rank_names(pseq_noRPT)
+get_taxa_unique(pseq_bac, taxonomic.rank = rank_names(pseq_bac)[7])
 species_pseq <- pseq_bac %>%
   aggregate_taxa(level = "species") %>%
   transform("compositional")
@@ -538,15 +492,27 @@ taxa_names(species_pseq)
 
 phyloseq::otu_table(species_pseq)
 
+#### Function for filtering out dubious taxa ----
+pop_taxa = function(physeq, badTaxa){
+  allTaxa = taxa_names(physeq)
+  allTaxa <- allTaxa[!(allTaxa %in% badTaxa)]
+  return(prune_taxa(allTaxa, physeq))
+}
+# Define unwanted taxa
+badTaxa = c("Unknown","unidentified", "bacterium", "archaeon", "soil_archaeon", "prokaryote",
+            "organism", "eukaryote", "compost_bacterium", "soil_bacterium")
 
-species_pseq2 <- tax_glom(species_pseq, "species", NArm = FALSE,
-                          bad_empty = c("unknown", "bacterium", "archaeon"))
-head(phyloseq::tax_table(species_pseq2))
+# Apply function on species phyloseq object
+sp2 = pop_taxa(species_pseq, badTaxa)
+# Check that taxa have been removed
+taxa_names(sp2)
 
-
-view(phyloseq::tax_table(species_pseq))
+# Agglomerate 
+species_pseq2 <- tax_glom(sp2, "species")
+taxa_names(species_pseq2)
 paste0("Number of species: ", nrow(phyloseq::otu_table(species_pseq2)))
 
+#### Plots ----
 plot_composition(species_pseq2, average_by = "intensity") +
   labs(x = "Management Intensity", y = "Relative Abundance", fill = "Species")
 
