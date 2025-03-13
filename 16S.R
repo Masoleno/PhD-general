@@ -364,7 +364,7 @@ pairwise.wilcox.test(alpha_df$Shannon, phyloseq::sample_data(pseq_rarefy)$orchar
 
 # Rel. abundance plots ----
 # See taxa at differennt ranks
-get_taxa_unique(pseq_bac, taxonomic.rank = rank_names(pseq_bac)[3])
+get_taxa_unique(pseq_bac_ft, taxonomic.rank = rank_names(pseq_bac)[3])
 
 ### Phylum ----
 phylum_pseq <- pseq_bac %>%
@@ -400,7 +400,8 @@ bar.rel.abund
 
 bar.rel.abund2 <- plot_composition(phylum_pseq,
                                    average_by = "intensity") +
-  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Phyla")
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Phyla") +
+  scale_x_discrete(labels = c("High", "Low"))
 
 bar.rel.abund2
 
@@ -417,17 +418,56 @@ bar.rel.abund4 <- plot_composition(phylum_pseq,
 
 bar.rel.abund4
 
+### Order ----
+order_pseq <- pseq_bac %>%
+  aggregate_taxa(level = "order") %>%
+  transform("compositional")
+
+taxa_names(order_pseq)
+tail(taxa_names(order_pseq))
+head(taxa_names(order_pseq))
+head(phyloseq::otu_table(order_pseq))
+head(phyloseq::tax_table(order_pseq))
+
+order_pseq <- tax_glom(order_pseq, "order", NArm = TRUE, bad_empty = "Unknown")
+head(phyloseq::tax_table(order_pseq))
+
+view(phyloseq::tax_table(order_pseq))
+paste0("Number of orders: ", nrow(phyloseq::otu_table(order_pseq)))
+
+microbiome::summarize_phyloseq(order_pseq)
+microbiome::readcount(order_pseq)
+
+
+head(phyloseq::tax_table(order_pseq))
+
+
+
+bar.order <- plot_composition(order_pseq,
+                                  average_by = "Orchard") +
+  labs(x = "Site", y = "Relative Abundance", fill = "Order") 
+
+bar.order
+
+
+bar.order2 <- plot_composition(order_pseq,
+                                   average_by = "intensity") +
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Order") +
+  scale_x_discrete(labels = c("High", "Low"))
+
+bar.order2
 
 ### Family ----
-#Transform abundance table to a relative abundance (compositional) table
-pseq_relabund <- microbiome::transform(pseq_bac, "compositional")
+#Family phyloseq
+family_pseq <- pseq_bac %>%
+  aggregate_taxa(level = "family") %>%
+  transform("compositional")
+family_pseq <- tax_glom(family_pseq, "family", NArm = TRUE, bad_empty = "Unknown")
 
 #Summarise and check sample counts which should each amount to 1
 microbiome::summarize_phyloseq(pseq_relabund)
 microbiome::readcount(pseq_relabund)
 
-#Family phyloseq
-family_pseq <- microbiome::aggregate_taxa(pseq_relabund, "family", verbose = FALSE)
 #Head of family relative abundance table
 head(phyloseq::otu_table(family_pseq))
 tail(phyloseq::otu_table(family_pseq))
@@ -436,6 +476,13 @@ paste0("Number of families: ", nrow(phyloseq::otu_table(family_pseq)))
 #Summarise
 microbiome::summarize_phyloseq(family_pseq)
 microbiome::readcount(family_pseq)
+
+bar.relabund.fam <- plot_composition(family_pseq,
+                                   average_by = "intensity") +
+  labs(x = "Management Intensity", y = "Relative Abundance", fill = "Family") +
+  scale_x_discrete(labels = c("High", "Low"))
+
+bar.relabund.fam
 
 pseq_rarefy <- subset_taxa(pseq_rarefy, family !="Unknown")
 
@@ -453,7 +500,6 @@ family_heatmap <- microbiome::plot_composition(family_pseq, plot.type = "heatmap
 family_heatmap
 
 ### Genus ----
-
 genus_pseq <- pseq_bac %>%
   aggregate_taxa(level = "genus") %>%
   transform("compositional")
@@ -465,9 +511,18 @@ head(phyloseq::tax_table(genus_pseq))
 genus_pseq <- tax_glom(genus_pseq, "genus", NArm = TRUE, bad_empty = "Unknown")
 head(phyloseq::tax_table(genus_pseq))
 
-
 view(phyloseq::tax_table(genus_pseq))
+
 paste0("Number of genera: ", nrow(phyloseq::otu_table(genus_pseq)))
+
+# Setting rel. abundance scale to 0-1 for plots
+count_to_prop <- function(x) { return( x / sum(x) )}
+genus_pseq <- transform_sample_counts(genus_pseq, count_to_prop)
+
+# Remove genera labelled as unknown so as to not obscure the plot
+genus_pseq <- subset_taxa(genus_pseq, !genus == "Unknown")
+# Check that sample sums are 1
+sample_sums(genus_pseq)[1:5]
 
 plot_composition(genus_pseq, average_by = "Orchard") +
   labs(x = "Site", y = "Relative Abundance", fill = "Genus") 
