@@ -1,5 +1,6 @@
 options(scipen = 999)
 library(tidyverse)
+library(ggpubr)
 
 # Read in the  data or csv file created at the end of the data-prep.R script ----
 load("combined-tidy-data.RData")
@@ -35,7 +36,7 @@ for (i in 3:11) {
 }
 
 
-for(i in 3:11){
+for(i in 3:10){
   plot <- ggplot(tidyData, aes(x = Orchard, y = tidyData[,i], colour = fruit_type)) +
     stat_boxplot(aes(Orchard, tidyData[,i]), geom = "errorbar") +
     geom_boxplot(aes(Orchard, tidyData[,i]), outlier.shape = NA, coef = 0) +
@@ -47,7 +48,7 @@ for(i in 3:11){
   #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-fruit-type.jpeg"), plot = plot)
 }
 
-for(i in 3:11){
+for(i in 3:10){
   plot <- ggplot(tidyData, aes(x = Orchard, y = tidyData[,i])) +
     stat_boxplot(aes(Orchard, tidyData[,i]), geom = "errorbar") +
     geom_boxplot(aes(Orchard, tidyData[,i]), outlier.shape = NA, coef = 0) +
@@ -71,7 +72,7 @@ for(i in 3:11){
   #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
 }
 
-for(i in 3:11){
+for(i in 3:10){
   plot <- ggplot(tidyData, aes(x = intensity, y = tidyData[,i])) +
     stat_boxplot(aes(intensity, tidyData[,i]), geom = "errorbar") +
     geom_boxplot(aes(intensity, tidyData[,i]), coef = 0) +
@@ -79,7 +80,7 @@ for(i in 3:11){
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     scale_y_continuous(limits = c(min(tidyData[,i]), max(tidyData[,i])))
   print(plot)
-  #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
+  ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
 }
 
 for(i in 3:11){
@@ -107,7 +108,7 @@ for(i in 3:11){
 
 
 
-pHVarbxp <- ggboxplot(pHData, x = "Variety", y = "pH", color = "fruit_type") +
+pHVarbxp <- ggboxplot(pHData, x = "variety_group", y = "pH", color = "fruit_type") +
     labs(color = "Crop Type") +
     theme(axis.text.x = element_text(angle =110))
 
@@ -119,17 +120,23 @@ pHRSbxp <- ggboxplot(pHData, x = "Rootstock", y = "pH", color = "fruit_type") +
 
 facet(pHRSbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
 
+pHbxp <- ggboxplot(pHData, x = "intensity", y = "pH", color = "fruit_type") +
+  labs(color = "Crop Type", y = "pH") +
+  theme(axis.text.x = element_text(angle =110)) + xlab("Management Intensity") +
+  scale_x_discrete(labels = c("High", "Low"))
 
-OMVarbxp <- ggboxplot(OM_data, x = "Variety", y = "OM", color = "fruit_type") +
+
+OMVarbxp <- ggboxplot(OM_data, x = "intensity", y = "OM", color = "fruit_type") +
   labs(color = "Crop Type", y = "Organic Matter (%)") +
-  theme(axis.text.x = element_text(angle =110))
+  theme(axis.text.x = element_text(angle =110)) + xlab("Management Intensity") +
+  scale_x_discrete(labels = c("High", "Low"))
 
 facet(OMVarbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
 
 
 OMRSbxp <- ggboxplot(OM_data, x = "Rootstock", y = "OM", color = "fruit_type") +
   labs(color = "Crop Type", y = "Organic Matter (%)") +
-  theme(axis.text.x = element_text(angle =110))
+  theme(axis.text.x = element_text(angle =110)) 
 
 facet(OMRSbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Intensity", "Low Intensity")))
 
@@ -137,7 +144,7 @@ facet(OMRSbxp, facet.by = "intensity", panel.labs = list(intensity = c("High Int
 pHGalas <- pHData %>%
   filter(Variety == "Gala")
 
-pHGalaBxp <- ggboxplot(pHGalas, x = "Rootstock", y = "pH", color = "Orchard") +
+pHGalaBxp <- ggboxplot(pHGalas, x = "rootstock_group", y = "pH", color = "Orchard") +
   labs(color = "Site") +
   theme(axis.text.x = element_text(angle =110))
 
