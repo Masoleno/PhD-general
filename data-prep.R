@@ -12,8 +12,6 @@ library(gridExtra)
 library(ggpubr)
 
 
-
-
 # ---- Read in and inspect the data 
 chem_data <- read.csv("raw-chemistry-data-master.csv", na.strings = c(""))
 
@@ -23,12 +21,12 @@ str(chem_data)
 str(management_data)
 
 
-#Filter out columns used for calculating moisture
+#Filter out columns used for calculating moisture as well as unused SOC column
 chem_data <- chem_data %>%
   select(Sample.ID, Orchard, moisture....., pH:PO4..mg.kg., OM...., Variety, Rootstock)
 
 str(chem_data)
-
+glimpse(chem_data)
 
 ## Converting to numeric. Some NA's will be introduced where values are missing. 
 
@@ -37,8 +35,7 @@ chem_data <- chem_data %>%
 
 
 str(chem_data)
-
-
+# Rename colun headers to be easier to write
 chem_data <- chem_data %>% 
   rename(
    "NH4" = NH4..mg.kg.,
@@ -61,8 +58,6 @@ chem_data <- chem_data %>%
 
 chem_data <- chem_data %>% 
   mutate_at(vars(Moisture, NO3:PO4), list( ~ (round(., 2))))
-
-
 
 # Rounding OM values to 3 dp. 
 chem_data$OM <- round(chem_data$OM, 3)
@@ -127,6 +122,22 @@ comb_data$rootstock_group <- case_match(comb_data$Rootstock,
 comb_data$rootstock_group[comb_data$Orchard == "Lady Gilberts"] <- "Mixed"
 comb_data$rootstock_group[comb_data$Orchard == "Gunnersby Park"] <- "Mixed"
 
+# Add column for orchard codes to be able to plot data anonomously
+comb_data$site_code <- case_match(comb_data$Orchard,
+                                        "Wisley" ~ "C3",
+                                        "Gunnersby Park" ~ "C1",
+                                        "Lady Gilberts" ~ "C2",
+                                        "Clockhouse Farm" ~ "CD3",
+                                        "Loddington Farm" ~ "CD5",
+                                        "Avalon Fresh" ~ "CD1",
+                                        "Ockford Farm" ~ "CD6",
+                                        "Hononton" ~ "CD4",
+                                        "Wenderton" ~ "CD8",
+                                        "Pippin's Farm" ~ "CD7",
+                                        "Burr's Hill Farm" ~ "CD2",
+                                        "Ragmans Lane Farm" ~ "CC3",
+                                        "North Down Farm" ~ "CC2",
+                                        "Burrow Hill Cider" ~ "CC1")
 
 tidyData <- comb_data
 
