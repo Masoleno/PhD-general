@@ -37,9 +37,9 @@ for (i in 3:11) {
 
 
 for(i in 3:10){
-  plot <- ggplot(tidyData, aes(x = Orchard, y = tidyData[,i], colour = fruit_type)) +
-    stat_boxplot(aes(Orchard, tidyData[,i]), geom = "errorbar") +
-    geom_boxplot(aes(Orchard, tidyData[,i]), outlier.shape = NA, coef = 0) +
+  plot <- ggplot(tidyData, aes(x = site_code, y = tidyData[,i], colour = fruit_type)) +
+    stat_boxplot(aes(site_code, tidyData[,i]), geom = "errorbar") +
+    geom_boxplot(aes(site_code, tidyData[,i]), outlier.shape = NA, coef = 0) +
     ylab(colnames(tidyData[i])) + 
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     labs(colour = "Fruit Type") +
@@ -49,9 +49,9 @@ for(i in 3:10){
 }
 
 for(i in 3:10){
-  plot <- ggplot(tidyData, aes(x = Orchard, y = tidyData[,i])) +
-    stat_boxplot(aes(Orchard, tidyData[,i]), geom = "errorbar") +
-    geom_boxplot(aes(Orchard, tidyData[,i]), outlier.shape = NA, coef = 0) +
+  plot <- ggplot(tidyData, aes(x = site_code, y = tidyData[,i])) +
+    stat_boxplot(aes(site_code, tidyData[,i]), geom = "errorbar") +
+    geom_boxplot(aes(site_code, tidyData[,i]), outlier.shape = NA, coef = 0) +
     ylab(colnames(tidyData[i])) +
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     labs(colour = "Orchard Type") +
@@ -61,9 +61,9 @@ for(i in 3:10){
 }
 
 for(i in 3:11){
-  plot <- ggplot(tidyData, aes(x = Orchard, y = tidyData[,i], colour = intensity)) +
-    stat_boxplot(aes(Orchard, tidyData[,i]), geom = "errorbar") +
-    geom_boxplot(aes(Orchard, tidyData[,i]), outlier.shape = NA, coef = 0) +
+  plot <- ggplot(tidyData, aes(x = site_code, y = tidyData[,i], colour = intensity)) +
+    stat_boxplot(aes(site_code, tidyData[,i]), geom = "errorbar") +
+    geom_boxplot(aes(site_code, tidyData[,i]), outlier.shape = NA, coef = 0) +
     ylab(colnames(tidyData[i])) +
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     labs(colour = "Management Intensity") +
@@ -80,7 +80,7 @@ for(i in 3:10){
     theme(panel.background = element_rect(fill = NA, colour = 'black'), axis.text.x = element_text(angle =110)) +
     scale_y_continuous(limits = c(min(tidyData[,i]), max(tidyData[,i])))
   print(plot)
-  ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
+  #ggsave(file = paste0("boxplot_", colnames(tidyData[i]), "-intensity.jpeg"), plot = plot)
 }
 
 for(i in 3:11){
