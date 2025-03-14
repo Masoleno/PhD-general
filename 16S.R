@@ -89,7 +89,9 @@ ps_bac <- make_pseq("ps_countmat_16S.csv", "ps_taxamat_silva.csv", "combined-tid
 # Check the summary of the phyloseq object
 microbiome::summarize_phyloseq(ps_bac)
 ps_bac
-View(tax_table(ps_bac))
+head(tax_table(ps_bac))
+head(sample_data(ps_bac))
+head(otu_table(ps_bac))
 
 # Make a new phyloseq object without repeats
 sample_names(ps_bac)
@@ -306,10 +308,10 @@ phyloseq::plot_richness(physeq = pseq_bac_ft,
                         measures = "Shannon") +
   ggplot2::geom_boxplot()
 
-phyloseq::plot_richness(physeq = pseq_bac_ft, 
+phyloseq::plot_richness(physeq = pseq_bac, 
                         x = "intensity",
                         measures = "Shannon") +
-  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Shannon's Diversity") +
+  ggplot2::geom_boxplot() + theme_bw() + labs(x = "Management Intensity", y = "Shannon's Diversity 16S") +
   theme(strip.text.x = element_blank(),
         strip.background = element_blank()) + scale_x_discrete(labels = c("high" = "High", "low" = "Low"))
 
@@ -389,11 +391,13 @@ microbiome::readcount(phylum_pseq)
 
 head(phyloseq::tax_table(phylum_pseq))
 
+phylum_pseq <- transform_sample_counts(phylum_pseq, count_to_prop)
 
 
 bar.rel.abund <- plot_composition(phylum_pseq,
-                                  average_by = "Orchard") +
-  labs(x = "Site", y = "Relative Abundance", fill = "Phyla") 
+                                  average_by = "site_code") +
+  labs(x = "Site", y = "Relative Abundance", fill = "Phyla") +
+  theme(legend.key.size = unit(0.5, "cm"))
 
 bar.rel.abund
 
@@ -401,7 +405,8 @@ bar.rel.abund
 bar.rel.abund2 <- plot_composition(phylum_pseq,
                                    average_by = "intensity") +
   labs(x = "Management Intensity", y = "Relative Abundance", fill = "Phyla") +
-  scale_x_discrete(labels = c("High", "Low"))
+  scale_x_discrete(labels = c("High", "Low"))  +
+  theme(legend.key.size = unit(0.5, "cm"))
 
 bar.rel.abund2
 
@@ -459,9 +464,10 @@ bar.order2
 
 ### Family ----
 #Family phyloseq
-family_pseq <- pseq_bac %>%
+family_pseq <- pseq_bac_ft %>%
   aggregate_taxa(level = "family") %>%
   transform("compositional")
+
 family_pseq <- tax_glom(family_pseq, "family", NArm = TRUE, bad_empty = "Unknown")
 
 #Summarise and check sample counts which should each amount to 1
@@ -476,6 +482,8 @@ paste0("Number of families: ", nrow(phyloseq::otu_table(family_pseq)))
 #Summarise
 microbiome::summarize_phyloseq(family_pseq)
 microbiome::readcount(family_pseq)
+
+family_pseq <- transform_sample_counts(family_pseq, count_to_prop)
 
 bar.relabund.fam <- plot_composition(family_pseq,
                                    average_by = "intensity") +
@@ -500,9 +508,11 @@ family_heatmap <- microbiome::plot_composition(family_pseq, plot.type = "heatmap
 family_heatmap
 
 ### Genus ----
-genus_pseq <- pseq_bac %>%
+genus_pseq <- pseq_bac_ft %>%
   aggregate_taxa(level = "genus") %>%
   transform("compositional")
+
+sort(get_taxa_unique(genus_pseq, taxonomic.rank = rank_names(genus_pseq)[6]))
 
 head(phyloseq::otu_table(genus_pseq))
 head(phyloseq::tax_table(genus_pseq))
@@ -524,8 +534,9 @@ genus_pseq <- subset_taxa(genus_pseq, !genus == "Unknown")
 # Check that sample sums are 1
 sample_sums(genus_pseq)[1:5]
 
-plot_composition(genus_pseq, average_by = "Orchard") +
-  labs(x = "Site", y = "Relative Abundance", fill = "Genus") 
+plot_composition(genus_pseq, average_by = "site_code") +
+  labs(x = "Site", y = "Relative Abundance", fill = "Genus") +
+  theme(legend.key.size = unit(0.3, "cm"))
 
 
 plot_composition(genus_pseq, average_by = "intensity") +
