@@ -91,9 +91,6 @@ avgsNutri <- tidyData %>%
 
 
 
-
-
-
 # Comparisons between sites (orchards) ----
 ## pH ----
 ### Testing for outliers----
@@ -154,7 +151,7 @@ ggboxplot(pHData, x = "Orchard", y = "pH", color = "Variety") +
 ###Kruskal-Wallis ----
 
 pHSiteKruskal <- pHData %>%
-  rstatix::kruskal_test(pH ~ Orchard)
+  rstatix::kruskal_test(pH ~ site_code)
 pHSiteKruskal
 
 # Show the effect size
@@ -163,16 +160,17 @@ pHData %>%
 
 ####Pairwise comparisons ----
 pwcpHSite <- pHData %>%
-   dunn_test(pH ~ Orchard, p.adjust.method = "bonferroni")
+   dunn_test(pH ~ site_code, p.adjust.method = "bonferroni")
 pwcpHSite
 
 ####Plot with significance labels ----
 pwcpHSite <- pwcpHSite %>%
-  add_xy_position(x = "Orchard")
+  add_xy_position(x = "site_code")
 
-ggboxplot(pHData, x = "Orchard", y = "pH", fill = "intensity", alpha = 0.5) +
+ggboxplot(pHData, x = "site_code", y = "pH", fill = "intensity", alpha = 0.5) +
   labs(subtitle = get_test_label(pHSiteKruskal,detailed = TRUE),
        caption = get_pwc_label(pwcpHSite), fill = "Management Intensity") +
+  xlab("Site") +
   theme(axis.text.x = element_text(angle =110, face = "bold"), axis.title = element_text(face = "bold")) +
   scale_fill_manual(labels = c("High", "Low"), values = c("#55C667FF", "#FDE725FF"))
 
